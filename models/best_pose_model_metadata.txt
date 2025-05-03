@@ -1,0 +1,4 @@
+Pipeline(steps=[('standardscaler', StandardScaler()),
+                ('kneighborsclassifier', KNeighborsClassifier(n_neighbors=1))])
+{'kneighborsclassifier__n_neighbors': 1, 'kneighborsclassifier__weights': 'uniform'}
+0.9562492033823636

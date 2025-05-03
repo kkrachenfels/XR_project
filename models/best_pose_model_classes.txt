@@ -1,0 +1,3 @@
+['A' 'A_flat' 'A_sharp' 'B' 'B_flat' 'B_sharp' 'C' 'C_flat' 'C_sharp' 'D'
+ 'D_flat' 'D_sharp' 'E' 'E_flat' 'E_sharp' 'F' 'F_flat' 'F_sharp' 'G'
+ 'G_flat' 'G_sharp']

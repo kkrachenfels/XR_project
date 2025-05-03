@@ -20,7 +20,7 @@ This file will run through a number of scikit learn models on the the training d
 in training.csv.  This training data was collected through running:
 """
 
-model_name = 'best_ymca_pose_model'
+model_name = 'best_pose_model'
 
 
 def get_data(file_name):
@@ -29,10 +29,12 @@ def get_data(file_name):
     :return: X - the data representing the road view
              y - what turn value
     """
-    df = pd.read_csv(f'{file_name}', header=None)
-    # print(df.head())
-    X = df.loc[:, 1:]
-    y = df.loc[:, 0]
+    df = pd.read_csv(f'{file_name}')
+    print(df.head())
+    X = df.iloc[:, 1:]
+    y = df.iloc[:, 0]
+    print(y.shape)
+    print(X.shape)
     # print(X.shape)
     # print(y.shape)
     classes = []
@@ -50,7 +52,7 @@ def train_model(model, X, y, name=None, param_grid=None):
         print(f"Training: {name}")
 
     if param_grid:
-        grid = GridSearchCV(model, param_grid, cv=5)
+        grid = GridSearchCV(model, param_grid, cv=5, verbose=2)
         grid.fit(X, y)
         print(grid.best_score_)
         print(grid.best_params_)
@@ -105,13 +107,13 @@ def find_best_model(X, y):
             'params_grid': dict(logisticregression__penalty=['l2'], logisticregression__C=[10, 1, 0.1, 0.01], logisticregression__solver=['newton-cg', 'sag', 'lbfgs'],
                                 logisticregression__max_iter=[100, 200, 300]),
             'name': 'LogisticRegression',
-            'skip': False
+            'skip': True
         },
         {
             'model': make_pipeline(StandardScaler(), create_decision_tree()),
             'params_grid': dict(decisiontreeclassifier__criterion=['gini', 'entropy'], decisiontreeclassifier__max_depth=[2, 3, 4, 5], decisiontreeclassifier__min_samples_split=[2, 3]),
             'name': 'DecisionTree',
-            'skip': False
+            'skip': True
         },
         {
             'model': make_pipeline(StandardScaler(), create_svc()),
@@ -127,9 +129,9 @@ def find_best_model(X, y):
         },
         {
             'model': make_pipeline(StandardScaler(), create_knn()),
-            'params_grid': dict(n_neighbors=list(range(1, 10)), weights=['uniform', 'distance']),
-            'name': 'KNN GridSearch',
-            'skip': True
+            'params_grid': dict(kneighborsclassifier__n_neighbors=list(range(1, 10)), kneighborsclassifier__weights=['uniform', 'distance']),
+            'name': 'KNeighborsClassifier',
+            'skip': False,
         },
         {
             'model': make_pipeline(StandardScaler(), create_knn()),
@@ -183,24 +185,26 @@ def find_best_model(X, y):
 
 
 """
-KNN Grid
-0.72
-{'n_neighbors': 23, 'weights': 'uniform'}
-KNeighborsClassifier(algorithm='auto', leaf_size=30, metric='minkowski',
-           metric_params=None, n_jobs=None, n_neighbors=23, p=2,
-           weights='uniform')
+0.8144749961352972
+{'decisiontreeclassifier__criterion': 'entropy', 'decisiontreeclassifier__max_depth': 5, 'decisiontreeclassifier__min_samples_split': 3}
 
 
-MLP
-0.7133333333333334
-{'activation': 'relu', 'alpha': 10, 'hidden_layer_sizes': (250, 128, 16), 'solver': 'sgd'}
-MLPClassifier(activation='relu', alpha=10, batch_size='auto', beta_1=0.9,
-       beta_2=0.999, early_stopping=False, epsilon=1e-08,
-       hidden_layer_sizes=(250, 128, 16), learning_rate='constant',
-       learning_rate_init=0.001, max_iter=200, momentum=0.9,
-       n_iter_no_change=10, nesterovs_momentum=True, power_t=0.5,
-       random_state=None, shuffle=True, solver='sgd', tol=0.0001,
-       validation_fraction=0.1, verbose=False, warm_start=False)
+0.9562492033823636
+{'kneighborsclassifier__n_neighbors': 1, 'kneighborsclassifier__weights': 'uniform'}
+
+
+0.8484361731313627
+{'randomforestclassifier__max_depth': 4, 'randomforestclassifier__n_estimators': 100}
+Pipeline(steps=[('standardscaler', StandardScaler()),
+                ('randomforestclassifier',
+                 RandomForestClassifier(max_depth=4))])
+
+                 
+*******  Best Model and Parameters  *********
+Pipeline(steps=[('standardscaler', StandardScaler()),
+                ('kneighborsclassifier', KNeighborsClassifier(n_neighbors=1))])
+{'kneighborsclassifier__n_neighbors': 1, 'kneighborsclassifier__weights': 'uniform'}
+0.9562492033823636
 """
 
 
@@ -218,7 +222,7 @@ python 02_pose_model_training.py --file-name ymca_training.csv --model-name ymca
 '''
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument("--training-data", type=str, required=False, default='./data/ymca_training.csv',
+    ap.add_argument("--training-data", type=str, required=False, default='./data/ALL_POSES.csv',
                     help="name of the training data file")
     ap.add_argument("--model-name", type=str, required=False, default=f'{model_name}',
                     help=f"name of the saved pickled model [no suffix]. Default: {model_name}.pkl")
@@ -234,15 +238,15 @@ if __name__ == '__main__':
     print(best_model)
     print(best_params)
     print(best_score)
-    with open(f'{model_name}_metadata.txt', 'w') as f:
+    with open(f'./models/{model_name}_metadata.txt', 'w') as f:
         f.write(f'{best_model}\n')
         f.write(f'{best_params}\n')
         f.write(f'{best_score}\n')
 
-    with open(f'{model_name}_classes.txt', 'w') as f:
+    with open(f'./models/{model_name}_classes.txt', 'w') as f:
         f.write(f"{classes}")
 
 
-    joblib.dump(best_model, f"{model_name}.pkl")
+    joblib.dump(best_model, f"./models/{model_name}.pkl")
 
-    print(f"Done saving model to best model:  {model_name}.pkl")
+    print(f"Done saving model to best model:  models/{model_name}.pkl")

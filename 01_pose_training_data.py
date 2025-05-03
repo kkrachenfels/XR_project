@@ -100,26 +100,13 @@ if __name__ == '__main__':
                     # Extract Pose landmarks
                     # We are only interested in the arm landmarks
                     landmarks = results.pose_landmarks.landmark
-                    arm_landmarks = []
-                    pose_index = mp_pose.PoseLandmark.LEFT_SHOULDER.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
 
-                    pose_index = mp_pose.PoseLandmark.RIGHT_SHOULDER.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
+                    all_landmarks = []
 
-                    pose_index = mp_pose.PoseLandmark.LEFT_ELBOW.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
-
-                    pose_index = mp_pose.PoseLandmark.RIGHT_ELBOW.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
-
-                    pose_index = mp_pose.PoseLandmark.LEFT_WRIST.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
-
-                    pose_index = mp_pose.PoseLandmark.RIGHT_WRIST.value
-                    arm_landmarks += [landmarks[pose_index].x, landmarks[pose_index].y, landmarks[pose_index].z]
-
-                    row = np.around(arm_landmarks, decimals=9).tolist()
+                    for landmark in landmarks:
+                        all_landmarks += [landmark.x, landmark.y, landmark.z]
+                    
+                    row = np.around(all_landmarks, decimals=9).tolist()
 
                     # Append class name
                     row.insert(0, class_name)

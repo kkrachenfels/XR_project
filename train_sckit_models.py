@@ -20,7 +20,6 @@ This file will run through a number of scikit learn models on the the training d
 in training.csv.  This training data was collected through running:
 """
 
-model_name = 'best_pose_model'
 
 
 def get_data(file_name):
@@ -205,6 +204,15 @@ Pipeline(steps=[('standardscaler', StandardScaler()),
                 ('kneighborsclassifier', KNeighborsClassifier(n_neighbors=1))])
 {'kneighborsclassifier__n_neighbors': 1, 'kneighborsclassifier__weights': 'uniform'}
 0.9562492033823636
+
+
+*******  Best Model and Parameters  *********
+Pipeline(steps=[('standardscaler', StandardScaler()),
+                ('randomforestclassifier',
+                 RandomForestClassifier(max_depth=4))])
+{'randomforestclassifier__max_depth': 4, 'randomforestclassifier__n_estimators': 100}
+0.9299427616899394
+Done saving model to best model:  models/best_natural_pose_model.pkl
 """
 
 
@@ -221,8 +229,10 @@ python 02_pose_model_training.py --file-name ymca_training.csv --model-name ymca
 
 '''
 if __name__ == '__main__':
+    model_name = 'best_natural_pose_model'
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--training-data", type=str, required=False, default='./data/ALL_POSES.csv',
+    ap.add_argument("--training-data", type=str, required=False, default='./data/ALL_NATURAL_POSES.csv',
                     help="name of the training data file")
     ap.add_argument("--model-name", type=str, required=False, default=f'{model_name}',
                     help=f"name of the saved pickled model [no suffix]. Default: {model_name}.pkl")

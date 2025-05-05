@@ -1,0 +1,5 @@
+Pipeline(steps=[('standardscaler', StandardScaler()),
+                ('randomforestclassifier',
+                 RandomForestClassifier(max_depth=4))])
+{'randomforestclassifier__max_depth': 4, 'randomforestclassifier__n_estimators': 100}
+0.9299427616899394

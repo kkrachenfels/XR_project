@@ -4,9 +4,26 @@ import numpy as np
 import time
 import joblib
 import argparse
+import os
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
+import pygame
+
+pygame.mixer.init()
+pygame.mixer.music.set_volume(1.0)
+
+
+
+def play_note(note_path):
+    try:
+        pygame.mixer.music.load(note_path)
+        #my_sound = pygame.mixer.Sound(note_path)
+        #my_sound.play()
+        pygame.mixer.music.play()
+    except Exception as e:
+        print(f"Error playing {note_path}: {e}")
+
 
 
 ap = argparse.ArgumentParser()
@@ -36,6 +53,9 @@ options = vision.PoseLandmarkerOptions(
     min_tracking_confidence=0.5
 )
 landmarker = vision.PoseLandmarker.create_from_options(options)
+
+    
+
 
 with open(f'{pose_model_path}', 'rb') as f:
     model = joblib.load(f)
@@ -75,6 +95,30 @@ def draw_landmarks(rgb_image, results):
         )
     return annotated
 
+POSE_TO_NOTE = {
+    'A': './notes/A_fixed.wav',
+    'B': './notes/B_fixed.wav',
+    'C': './notes/C_fixed.wav',
+    'D': './notes/D_fixed.wav',
+    'E': './notes/E_fixed.wav',
+    'F': './notes/F_fixed.wav',
+    'G': './notes/G_fixed.wav',
+    'A_sharp': './notes/A_sharp_fixed.wav',
+    'B_flat': './notes/A_sharp_fixed.wav',
+    'C_sharp': './notes/C_sharp_fixed.wav',
+    'D_flat': './notes/C_sharp_fixed.wav',
+    'D_sharp': './notes/D_sharp_fixed.wav',
+    'E_flat': './notes/D_sharp_fixed.wav',
+    'F_sharp': './notes/F_sharp_fixed.wav',
+    'G_flat': './notes/F_sharp_fixed.wav',
+    'G_sharp': './notes/G_sharp_fixed.wav',
+    'A_flat': './notes/G_sharp_fixed.wav',
+    'B_sharp': './notes/C_fixed.wav',
+    'C_flat': './notes/B_fixed.wav',
+    'E_sharp': './notes/F_fixed.wav',
+    'F_flat': './notes/E_fixed.wav'
+}
+
 # Main loop
 print("Press 'q' to quit.")
 prev_time = time.time()
@@ -100,8 +144,22 @@ while cap.isOpened():
     cur_poses = predict_classes(results.pose_landmarks)
     print(set(cur_poses))
 
+    
     if set(cur_poses) != set(last_detected_poses):
-        pass # play a changed note
+        for pose in cur_poses:
+            if pose in POSE_TO_NOTE:
+                sound_file = POSE_TO_NOTE[pose]
+                print(f"before playing")
+                if os.path.exists(sound_file) and not pygame.mixer.music.get_busy():
+                    print(f"Playing {sound_file}")
+                    play_note(sound_file)
+                    time.sleep(1)
+                else:
+                    print(f"Sound file {sound_file} not found.")
+        last_detected_poses = cur_poses
+
+    # if set(cur_poses) != set(last_detected_poses):
+    #     pass # play a changed note
 
     cv2.putText(bgr, f'Poses: {set(cur_poses)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 

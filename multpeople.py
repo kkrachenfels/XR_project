@@ -12,15 +12,16 @@ import pygame
 
 pygame.mixer.init()
 pygame.mixer.music.set_volume(1.0)
+pygame.mixer.set_num_channels(5)
+
 
 
 
 def play_note(note_path):
     try:
         pygame.mixer.music.load(note_path)
-        #my_sound = pygame.mixer.Sound(note_path)
-        #my_sound.play()
         pygame.mixer.music.play()
+        pygame.mixer.set_num_channels(5)
     except Exception as e:
         print(f"Error playing {note_path}: {e}")
 
@@ -30,7 +31,7 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument("--pose-model", type=str, default='./models/best_pose_model.pkl',
                 help="name of the saved pickled model")
-ap.add_argument("--mp-model", type=str, default="./pose_landmarker_full.task",
+ap.add_argument("--mp-model", type=str, default="./pose_landmarker_lite.task",
                 help="path of the mediapipe model to use (.task file)")
 args = vars(ap.parse_args())
 
@@ -39,15 +40,15 @@ pose_model_path = args['pose_model']
 
 # Set up video capture
 cap = cv2.VideoCapture(0)  # or 1 for external cam
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1024)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
 # Set up the pose landmarker
 base_options = python.BaseOptions(model_asset_path=model_path)
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
     running_mode=vision.RunningMode.VIDEO,
-    num_poses=2,
+    num_poses=5,
     min_pose_detection_confidence=0.5,
     min_pose_presence_confidence=0.5,
     min_tracking_confidence=0.5
@@ -119,6 +120,9 @@ POSE_TO_NOTE = {
     'F_flat': './notes/E_fixed.wav'
 }
 
+for note_path in POSE_TO_NOTE.values():
+    pygame.mixer.music.load(note_path)
+
 # Main loop
 print("Press 'q' to quit.")
 prev_time = time.time()
@@ -146,20 +150,20 @@ while cap.isOpened():
 
     
     if set(cur_poses) != set(last_detected_poses):
-        for pose in cur_poses:
+        for i, pose in enumerate(cur_poses):
             if pose in POSE_TO_NOTE:
                 sound_file = POSE_TO_NOTE[pose]
                 print(f"before playing")
-                if os.path.exists(sound_file) and not pygame.mixer.music.get_busy():
+                if os.path.exists(sound_file): #and not pygame.mixer.music.get_busy():
                     print(f"Playing {sound_file}")
-                    play_note(sound_file)
-                    time.sleep(1)
+                    if not pygame.mixer.Channel(i).get_busy():
+                        sound = pygame.mixer.Sound(sound_file)
+                        pygame.mixer.Channel(i).play(sound)
                 else:
                     print(f"Sound file {sound_file} not found.")
         last_detected_poses = cur_poses
 
-    # if set(cur_poses) != set(last_detected_poses):
-    #     pass # play a changed note
+
 
     cv2.putText(bgr, f'Poses: {set(cur_poses)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 

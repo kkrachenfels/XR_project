@@ -31,7 +31,7 @@ ap = argparse.ArgumentParser()
 
 ap.add_argument("--pose-model", type=str, default='./models/best_pose_model.pkl',
                 help="name of the saved pickled model")
-ap.add_argument("--mp-model", type=str, default="./pose_landmarker_lite.task",
+ap.add_argument("--mp-model", type=str, default="./pose_landmarker_full.task",
                 help="path of the mediapipe model to use (.task file)")
 args = vars(ap.parse_args())
 
@@ -39,7 +39,7 @@ model_path = args['mp_model']
 pose_model_path = args['pose_model']
 
 # Set up video capture
-cap = cv2.VideoCapture(0)  # or 1 for external cam
+cap = cv2.VideoCapture(1)  # or 1 for external cam
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1024)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
@@ -54,8 +54,6 @@ options = vision.PoseLandmarkerOptions(
     min_tracking_confidence=0.5
 )
 landmarker = vision.PoseLandmarker.create_from_options(options)
-
-    
 
 
 with open(f'{pose_model_path}', 'rb') as f:
@@ -165,7 +163,7 @@ while cap.isOpened():
 
 
 
-    cv2.putText(bgr, f'Poses: {set(cur_poses)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    cv2.putText(bgr, f'Poses: {set(cur_poses)}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2)
 
     # Show FPS
     curr_time = time.time()

@@ -1,5 +1,6 @@
 Pipeline(steps=[('standardscaler', StandardScaler()),
-                ('randomforestclassifier',
-                 RandomForestClassifier(max_depth=4))])
-{'randomforestclassifier__max_depth': 4, 'randomforestclassifier__n_estimators': 100}
-0.9299427616899394
+                ('logisticregression',
+                 LogisticRegression(C=10, multi_class='multinomial',
+                                    solver='newton-cg'))])
+{'logisticregression__C': 10, 'logisticregression__max_iter': 100, 'logisticregression__penalty': 'l2', 'logisticregression__solver': 'newton-cg'}
+0.8318613813811775

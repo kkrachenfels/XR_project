@@ -10,5 +10,5 @@ for i, track in enumerate(mid.tracks):
     for msg in track:
         print(msg)
 
-for msg in mid.play():
-    outport.send(msg)
+#for msg in mid.play():
+#    outport.send(msg)

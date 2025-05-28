@@ -5,7 +5,7 @@ print(mido.backend)
 
 outport = mido.open_output('IAC Driver Bus 1', autoreset=True)
 
-c_maj_chord = [24, 27, 31]
+c_maj_chord = [24, 28, 31]
 
 DEFAULT_VELOCITY = 80
 

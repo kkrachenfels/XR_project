@@ -4,8 +4,17 @@ import copy
 import threading
 import queue
 import random
+import argparse
 
 from mido import MidiFile, tick2second
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-r", "--replay-notes", action="store_true")
+
+# Parse the arguments
+args = parser.parse_args()
+
 
 outport = mido.open_output('IAC Driver Bus 1', autoreset=True)
 
@@ -29,11 +38,18 @@ def convert_time_to_sec(time):
         delta = 0
     return delta
 
-def upper_inversion(chord):
+def upper_inversion(chord, replay_notes=False):
     chord.sort()
     if chord[-1] + OCTAVE > MAX_NOTE:
         print("Chord can't be raised further...")
         return
+    
+    if replay_notes:
+        end_current_chord(chord)
+        chord[0] += OCTAVE
+        play_new_chord(chord)
+        return
+    
     stop_old_note_msg = mido.Message('note_off',
                         note=chord[0],
                         channel=STRING_CHANNEL,
@@ -53,11 +69,18 @@ def upper_inversion(chord):
     outport.send(start_new_note_msg)
 
 
-def lower_inversion(chord):
+def lower_inversion(chord, replay_notes=False):
     chord.sort()
     if chord[-1] - OCTAVE < MIN_NOTE:
         print("Chord can't be lowered further...")
         return
+    
+    if replay_notes:
+        end_current_chord(chord)
+        chord[-1] -= OCTAVE
+        play_new_chord(chord)
+        return
+    
     stop_old_note_msg = mido.Message('note_off',
                         note=chord[-1],
                         channel=STRING_CHANNEL,
@@ -89,12 +112,18 @@ def shift_chord_semitones(chord, semitones=1):
         chord[i] += semitones
     play_new_chord(chord)
 
-def shift_minor_chord(chord):
+def shift_minor_chord(chord, replay_notes=False):
     # find the major third interval, and make it a minor third
     chord.sort()
     full_chord = chord + [chord[0] + OCTAVE]
     for i in range(len(full_chord)-1):
         if full_chord[i] + 3 == full_chord[i+1]:
+            if replay_notes:
+                end_current_chord(chord)
+                chord[i] += 1
+                play_new_chord(chord)
+                return
+
             stop_old_note_msg = mido.Message('note_off',
                                 note=chord[i],
                                 channel=STRING_CHANNEL,
@@ -147,14 +176,14 @@ def string_thread(msg_q):
             command = msg_q.get_nowait()
             if 'invert' in command.keys():
                 if command['invert'] == 1:
-                    upper_inversion(current_chord)
+                    upper_inversion(current_chord, replay_notes=args.replay_notes)
                 elif command['invert'] == -1:
-                    lower_inversion(current_chord)
+                    lower_inversion(current_chord, replay_notes=args.replay_notes)
             elif 'shift' in command.keys():
                 shift_chord_semitones(current_chord, command['shift'])
             elif 'progression' in command.keys():
                 if command['progression'] == 'minor':
-                    shift_minor_chord(current_chord)
+                    shift_minor_chord(current_chord, replay_notes=args.replay_notes)
             elif command['type'] == 'stop':
                 end_current_chord(current_chord)
                 running = False
@@ -175,11 +204,10 @@ midi_thread.start()
 try:
     time.sleep(2)
     print("Inverting chord upward six times in three seconds")
-    for i in range(1):
+    for i in range(6):
         command_queue.put({'invert': 1})
         time.sleep(0.5)
 
-    """
     print("Inverting chord downward twelve times in six seconds")
     for i in range(6):
         command_queue.put({'invert': -1})
@@ -187,11 +215,11 @@ try:
 
     time.sleep(2)
     print("Randomly shifting the semitones of the chord up/down within -12 to 12")
-    for i in range(6):
+    for i in range(12):
         random_semitones = random.randint(-12, 12)
         command_queue.put({'shift': random_semitones})
         time.sleep(0.5)
-    """
+
     time.sleep(2)
     print("Make chord minor")
     command_queue.put({'progression': 'minor'})

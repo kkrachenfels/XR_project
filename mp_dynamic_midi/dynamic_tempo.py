@@ -16,15 +16,21 @@ DEFAULT_TICKS_PER_BEAT = 480
 DEFAULT_TEMPO = 500000
 DEFAULT_TIME_SIGNATURE = {'numerator': 4, 'denominator': 4}
 
+tempo = DEFAULT_TEMPO
+
 def convert_time_to_sec(time):
     # Convert message time from absolute time
     # in ticks to relative time in seconds.
     if time > 0:
-        delta = tick2second(time, DEFAULT_TICKS_PER_BEAT, DEFAULT_TEMPO)
+        delta = tick2second(time, DEFAULT_TICKS_PER_BEAT, tempo)
         print(delta)
     else:
         delta = 0
     return delta
+
+def adjust_tempo(new_tempo):
+    global tempo
+    tempo = new_tempo
 
 def kick_4_4():
     for i in range(4):
@@ -105,6 +111,8 @@ def percussion_thread(msg_q):
                 elif time_signature['numerator'] == 2:
                     current_percussion_fn = kick_2_4
                 else: current_percussion_fn = kick_all_beats
+            elif 'tempo' in command.keys():
+                adjust_tempo(command['tempo'])
             elif command['type'] == 'stop':
                 running = False
                 break
@@ -130,6 +138,10 @@ try:
     time.sleep(3)
     print("Changing time signature to 2/4")
     command_queue.put({'numerator': 2})
+
+    time.sleep(3)
+    print("Upping tempo")
+    command_queue.put({'tempo': 300000})
 
     time.sleep(3)
     print("Stopping MIDI thread")

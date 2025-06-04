@@ -40,7 +40,7 @@ def convert_time_to_sec(time):
     # in ticks to relative time in seconds.
     if time > 0:
         delta = tick2second(time, DEFAULT_TICKS_PER_BEAT, tempo)
-        print(delta)
+        #print(delta)
     else:
         delta = 0
     return delta
@@ -101,18 +101,24 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         scale = create_scale(chord[0], minor=minor)
         for i in range(7):
             melody.append(scale[random.randint(0, 7)]+OCTAVE)
-    
+    if melody and shift:
+        print(shift)
+        for i in range(len(melody)):
+            melody[i] += shift
+
+    shift_chord_semitones(chord, semitones=shift)
+    if minor:
+        shift_minor_chord(chord, replay_notes=replay_notes)
+    else:
+        shift_major_chord(chord, replay_notes=replay_notes)
     print(chord)
     print(melody)
     bass = chord[random.randint(0,2)] - OCTAVE
     outport.send(create_string_on_message(bass))
 
-    shift_chord_semitones(chord, semitones=shift)
-
     for i in range(7):
         msg = create_string_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
         sleep_time = convert_time_to_sec(msg.time)
-        print(sleep_time)
         time.sleep(sleep_time)
         outport.send(msg)   
         if i != 0:
@@ -211,7 +217,7 @@ def lower_inversion(chord, replay_notes=False):
 # neg number to go down
 def shift_chord_semitones(chord, semitones=1):
     end_current_chord(chord)
-    if semitones > 0 and (max(chord) + semitones > MAX_NOTE):
+    if semitones > 0 and (max(chord) + semitones > (MAX_NOTE - OCTAVE)):
         print("Chord can't be raised further...")
         return
     elif semitones < 0 and (min(chord) - semitones < MIN_NOTE):
@@ -221,7 +227,48 @@ def shift_chord_semitones(chord, semitones=1):
         chord[i] += semitones
     play_new_chord(chord)
 
+
+def shift_major_chord(chord, replay_notes=False):
+    # already a major chord
+    if chord[1] == chord[0] + 4:
+        return
+    
+    else:
+        if replay_notes:
+            end_current_chord(chord)
+            chord[1] += 1
+            play_new_chord(chord)
+            return
+        else:
+            stop_old_note_msg = create_string_off_message(chord[1])
+            outport.send(stop_old_note_msg)
+
+            chord[1] += 1
+    
+            start_new_note_msg = create_string_on_message(chord[1])
+            outport.send(start_new_note_msg)
+
 def shift_minor_chord(chord, replay_notes=False):
+    # already a minor chord
+    if chord[1] == chord[0] + 3:
+        return
+    
+    else:
+        if replay_notes:
+            end_current_chord(chord)
+            chord[1] -= 1
+            play_new_chord(chord)
+            return
+        else:
+            stop_old_note_msg = create_string_off_message(chord[1])
+            outport.send(stop_old_note_msg)
+
+            chord[1] -= 1
+    
+            start_new_note_msg = create_string_on_message(chord[1])
+            outport.send(start_new_note_msg)
+
+    '''
     # find the major third interval, and make it a minor third
     chord.sort()
     full_chord = chord + [chord[0] + OCTAVE]
@@ -229,7 +276,7 @@ def shift_minor_chord(chord, replay_notes=False):
         if full_chord[i] + 3 == full_chord[i+1]:
             if replay_notes:
                 end_current_chord(chord)
-                chord[i] += 1
+                chord[i] -= 1
                 play_new_chord(chord)
                 return
 
@@ -240,6 +287,7 @@ def shift_minor_chord(chord, replay_notes=False):
     
             start_new_note_msg = create_string_on_message(chord[i])
             outport.send(start_new_note_msg)
+    '''
 
 
 
@@ -286,8 +334,11 @@ def chord_thread(msg_q):
     #play_new_chord(current_chord)
     time_signature = copy.deepcopy(DEFAULT_TIME_SIGNATURE)
     melody = None
+    shift = 0
     current_fn = time_4_4
+    minor = False
     while running:
+        shift = 0
         try:
             # Non-blocking check for new commands
             command = msg_q.get_nowait()
@@ -297,14 +348,9 @@ def chord_thread(msg_q):
                     upper_inversion(current_chord, replay_notes=args.replay_notes)
                 elif command['invert'] == -1:
                     lower_inversion(current_chord, replay_notes=args.replay_notes)
-            elif 'shift' in command.keys():
-                shift_chord_semitones(current_chord, command['shift'])
             elif 'progression' in command.keys():
                 if command['progression'] == 'minor':
                     shift_minor_chord(current_chord, replay_notes=args.replay_notes)
-            elif command['type'] == 'stop':
-                end_current_chord(current_chord)
-                running = False
             print(current_chord)
             '''
             if 'type' in command.keys():
@@ -312,12 +358,23 @@ def chord_thread(msg_q):
                     end_all_notes()
                     running = False
                     break
+                elif command['type'] == 'new_melody':
+                    melody = []
             elif 'tempo' in command.keys():
                 adjust_tempo(command['tempo'])
+            elif 'shift' in command.keys():
+                shift = command['shift']
+            elif 'progression' in command.keys():
+                end_all_notes()
+                if command['progression'] == 'minor':
+                    minor=True
+                else:
+                    minor=False
+                melody = []
         except queue.Empty:
             pass
 
-        melody = current_fn(current_chord, melody=melody)
+        melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
 
 
 # Queue for communication between main thread and MIDI percussion
@@ -329,25 +386,26 @@ c_thread.start()
 
 # Main program example: Change behavior via queue
 try:
-    time.sleep(1)
+    #time.sleep(1)
     print("Upping tempo")
     command_queue.put({'tempo': 300000})
 
-    print("Inverting chord upward 2 times")
-    for i in range(1):
-        command_queue.put({'invert': 1})
-        time.sleep(0.5)
+    #command_queue.put({'type': 'new_melody'})
 
-    print("Inverting chord downward 2 times")
-    for i in range(1):
-        command_queue.put({'invert': -1})
-        time.sleep(0.5)
+    #command_queue.put({'invert': 1})
+    #command_queue.put({'invert': -1})
 
     print("Randomly shifting the semitones of the chord up/down within -12 to 12")
     for i in range(1):
         random_semitones = random.randint(-12, 12)
         command_queue.put({'shift': random_semitones})
-        time.sleep(0.5)
+        #command_queue.put({'type': 'new_melody'}) 
+    command_queue.put({'progression': 'minor'})
+    for i in range(1):
+        random_semitones = random.randint(-12, 12)
+        command_queue.put({'shift': random_semitones})
+
+    command_queue.put({'progression': 'major'})
 
 
     #time.sleep(10)

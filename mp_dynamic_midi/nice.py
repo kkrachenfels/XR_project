@@ -24,6 +24,7 @@ DEFAULT_TICKS_PER_BEAT = 480
 DEFAULT_TEMPO = 500000
 DEFAULT_TIME_SIGNATURE = {'numerator': 4, 'denominator': 4}
 CHANNELS = {"STRING": 0, 
+            "MELODY": 1,
             "PERCUSSION": 4
             }
 KICK_NOTE = 36
@@ -83,6 +84,22 @@ def create_string_off_message(note, time=0):
                     time=time
                     )
 
+def create_melody_on_message(note, time=0):
+    return mido.Message('note_on',
+                    note=note,
+                    channel=CHANNELS['MELODY'],
+                    velocity=DEFAULT_VELOCITY,
+                    time=time
+                    )
+
+def create_melody_off_message(note, time=0):
+    return mido.Message('note_off',
+                    note=note,
+                    channel=CHANNELS['MELODY'],
+                    velocity=DEFAULT_VELOCITY,
+                    time=time
+                    )
+
 def create_scale(bass_note, minor=False):
     scale = [bass_note]
     intervals = major_intervals
@@ -129,7 +146,7 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     outport.send(create_percussion_off_message(note=KICK_NOTE))
 
     for i in range(7):
-        msg = create_string_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
+        msg = create_melody_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
         sleep_time = convert_time_to_sec(msg.time)
         time.sleep(sleep_time)
         outport.send(msg) 
@@ -148,11 +165,11 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
                 velocity=rand_velocity)
             )
         if i != 0:
-            msg = create_string_off_message(melody[i-1])
+            msg = create_melody_off_message(melody[i-1])
             outport.send(msg)  
 
     time.sleep(convert_time_to_sec(DEFAULT_TICKS_PER_BEAT))
-    outport.send(create_string_off_message(melody[-1]))
+    outport.send(create_melody_off_message(melody[-1]))
     outport.send(create_string_off_message(bass))
     return melody
 

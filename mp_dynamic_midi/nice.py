@@ -27,6 +27,8 @@ CHANNELS = {"STRING": 0,
             "PERCUSSION": 4
             }
 KICK_NOTE = 36
+SNARE = 34
+HI_HAT_CLOSE = 33
 c_maj_chord = [60, 64, 67]
 c_maj_notes = [60, 62, 64, 65, 67, 69, 71, 72]
 c_min_notes = [60, 62, 63, 65, 67, 68, 70, 72]
@@ -49,9 +51,9 @@ def adjust_tempo(new_tempo):
     global tempo
     tempo = new_tempo
 
-def create_percussion_message(velocity):
+def create_percussion_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
     return mido.Message('note_on',
-                    note=KICK_NOTE,
+                    note=note,
                     channel=CHANNELS['PERCUSSION'],
                     velocity=velocity,
                     time=DEFAULT_TICKS_PER_BEAT
@@ -106,6 +108,7 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         for i in range(len(melody)):
             melody[i] += shift
 
+    outport.send(create_percussion_message(note=KICK_NOTE))
     shift_chord_semitones(chord, semitones=shift)
     if minor:
         shift_minor_chord(chord, replay_notes=replay_notes)
@@ -120,7 +123,16 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         msg = create_string_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
         sleep_time = convert_time_to_sec(msg.time)
         time.sleep(sleep_time)
-        outport.send(msg)   
+        outport.send(msg) 
+        outport.send(create_percussion_message(
+                        note=HI_HAT_CLOSE, 
+                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+        )  
+        if i == 3:
+            outport.send(create_percussion_message(
+                note=SNARE,
+                velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+            )
         if i != 0:
             msg = create_string_off_message(melody[i-1])
             outport.send(msg)  

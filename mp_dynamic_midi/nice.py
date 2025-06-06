@@ -59,6 +59,14 @@ def create_percussion_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
                     time=DEFAULT_TICKS_PER_BEAT
                     )
 
+def create_percussion_off_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
+    return mido.Message('note_off',
+                    note=note,
+                    channel=CHANNELS['PERCUSSION'],
+                    velocity=velocity,
+                    time=DEFAULT_TICKS_PER_BEAT
+                    )
+
 def create_string_on_message(note, time=0):
     return mido.Message('note_on',
                     note=note,
@@ -118,6 +126,7 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     print(melody)
     bass = chord[random.randint(0,2)] - OCTAVE
     outport.send(create_string_on_message(bass))
+    outport.send(create_percussion_off_message(note=KICK_NOTE))
 
     for i in range(7):
         msg = create_string_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
@@ -129,9 +138,14 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
                         velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
         )  
         if i == 3:
+            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
             outport.send(create_percussion_message(
                 note=SNARE,
-                velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+                velocity=rand_velocity)
+            )
+            outport.send(create_percussion_off_message(
+                note=SNARE,
+                velocity=rand_velocity)
             )
         if i != 0:
             msg = create_string_off_message(melody[i-1])

@@ -173,44 +173,111 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     outport.send(create_string_off_message(bass))
     return melody
 
-def kick_4_4():
-    print("In kick_4_4")
-    for i in range(4):
-        if i % 4 == 0: v = DEFAULT_VELOCITY + 36
-        else: v = DEFAULT_VELOCITY
 
-        msg = create_percussion_message(v)
-        time.sleep(convert_time_to_sec(msg.time))
-        outport.send(msg)
+def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes=False):
+    print("In time_4_4")
+    if not melody:
+        melody = []
+        scale = create_scale(chord[0], minor=minor)
+        for i in range(5):
+            melody.append(scale[random.randint(0, 7)]+OCTAVE)
+    if melody and shift:
+        print(shift)
+        for i in range(len(melody)):
+            melody[i] += shift
 
-def kick_3_4():
-    print("In kick_3_4")
+    outport.send(create_percussion_message(note=KICK_NOTE))
+    shift_chord_semitones(chord, semitones=shift)
+    if minor:
+        shift_minor_chord(chord, replay_notes=replay_notes)
+    else:
+        shift_major_chord(chord, replay_notes=replay_notes)
+    print(chord)
+    print(melody)
+    bass = chord[random.randint(0,2)] - OCTAVE
+    outport.send(create_string_on_message(bass))
+    outport.send(create_percussion_off_message(note=KICK_NOTE))
+
+    for i in range(5):
+        msg = create_melody_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
+        sleep_time = convert_time_to_sec(msg.time)
+        time.sleep(sleep_time)
+        outport.send(msg) 
+        outport.send(create_percussion_message(
+                        note=HI_HAT_CLOSE, 
+                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+        )  
+        if i == 2:
+            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
+            outport.send(create_percussion_message(
+                note=SNARE,
+                velocity=rand_velocity)
+            )
+            outport.send(create_percussion_off_message(
+                note=SNARE,
+                velocity=rand_velocity)
+            )
+        if i != 0:
+            msg = create_melody_off_message(melody[i-1])
+            outport.send(msg)  
+
+    time.sleep(convert_time_to_sec(DEFAULT_TICKS_PER_BEAT))
+    outport.send(create_melody_off_message(melody[-1]))
+    outport.send(create_string_off_message(bass))
+    return melody
+
+
+def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes=False):
+    print("In time_4_4")
+    if not melody:
+        melody = []
+        scale = create_scale(chord[0], minor=minor)
+        for i in range(3):
+            melody.append(scale[random.randint(0, 7)]+OCTAVE)
+    if melody and shift:
+        print(shift)
+        for i in range(len(melody)):
+            melody[i] += shift
+
+    outport.send(create_percussion_message(note=KICK_NOTE))
+    shift_chord_semitones(chord, semitones=shift)
+    if minor:
+        shift_minor_chord(chord, replay_notes=replay_notes)
+    else:
+        shift_major_chord(chord, replay_notes=replay_notes)
+    print(chord)
+    print(melody)
+    bass = chord[random.randint(0,2)] - OCTAVE
+    outport.send(create_string_on_message(bass))
+    outport.send(create_percussion_off_message(note=KICK_NOTE))
+
     for i in range(3):
-        if i % 3 == 0: v = DEFAULT_VELOCITY + 36
-        else: v = DEFAULT_VELOCITY
+        msg = create_melody_on_message(melody[i], time=DEFAULT_TICKS_PER_BEAT)
+        sleep_time = convert_time_to_sec(msg.time)
+        time.sleep(sleep_time)
+        outport.send(msg) 
+        outport.send(create_percussion_message(
+                        note=HI_HAT_CLOSE, 
+                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+        )  
+        if i == 1:
+            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
+            outport.send(create_percussion_message(
+                note=SNARE,
+                velocity=rand_velocity)
+            )
+            outport.send(create_percussion_off_message(
+                note=SNARE,
+                velocity=rand_velocity)
+            )
+        if i != 0:
+            msg = create_melody_off_message(melody[i-1])
+            outport.send(msg)  
 
-        msg = create_percussion_message(v)
-        time.sleep(convert_time_to_sec(msg.time))
-        outport.send(msg)
-
-def kick_2_4():
-    print("In kick_2_4")
-    for i in range(2):
-        if i % 2 == 0: v = DEFAULT_VELOCITY + 36
-        else: v = DEFAULT_VELOCITY
-
-        msg = create_percussion_message(v)
-        time.sleep(convert_time_to_sec(msg.time))
-        outport.send(msg)
-
-def kick_all_beats():
-    print("In kick_all")
-    v = DEFAULT_VELOCITY
-    msg = create_percussion_message(v)
-    time.sleep(convert_time_to_sec(msg.time))
-    outport.send(msg)
-
-
+    time.sleep(convert_time_to_sec(DEFAULT_TICKS_PER_BEAT))
+    outport.send(create_melody_off_message(melody[-1]))
+    outport.send(create_string_off_message(bass))
+    return melody
 
 
 
@@ -339,43 +406,10 @@ def end_all_notes():
         outport.send(create_string_off_message(note))
 
 
-# run a steady percussion beat in this thread
-def percussion_thread(msg_q, chord_q):
-    running = True
-    time_signature = copy.deepcopy(DEFAULT_TIME_SIGNATURE)
-    current_percussion_fn = kick_4_4
-    while running:
-        try:
-            # Non-blocking check for new commands
-            command = msg_q.get_nowait()
-            if list(command.keys())[0] in ['invert', 'shift', 'progression']:
-                chord_q.put(command)
-            elif 'numerator' in command.keys():
-                time_signature['numerator'] = command['numerator']
-                if time_signature['numerator'] == 4:
-                    current_percussion_fn = kick_4_4
-                elif time_signature['numerator'] == 3:
-                    current_percussion_fn = kick_3_4
-                elif time_signature['numerator'] == 2:
-                    current_percussion_fn = kick_2_4
-                else: current_percussion_fn = kick_all_beats
-            elif 'tempo' in command.keys():
-                adjust_tempo(command['tempo'])
-            elif command['type'] == 'stop':
-                running = False
-                break
-        except queue.Empty:
-            pass
-
-        current_percussion_fn()
-
-
 # run a steady stream of string/synth notes
-def chord_thread(msg_q):
+def music_thread(msg_q):
     running = True
     current_chord = c_maj_chord
-    #play_new_chord(current_chord)
-    time_signature = copy.deepcopy(DEFAULT_TIME_SIGNATURE)
     melody = None
     shift = 0
     current_fn = time_4_4
@@ -385,17 +419,7 @@ def chord_thread(msg_q):
         try:
             # Non-blocking check for new commands
             command = msg_q.get_nowait()
-            '''
-            if 'invert' in command.keys():
-                if command['invert'] == 1:
-                    upper_inversion(current_chord, replay_notes=args.replay_notes)
-                elif command['invert'] == -1:
-                    lower_inversion(current_chord, replay_notes=args.replay_notes)
-            elif 'progression' in command.keys():
-                if command['progression'] == 'minor':
-                    shift_minor_chord(current_chord, replay_notes=args.replay_notes)
-            print(current_chord)
-            '''
+
             if 'type' in command.keys():
                 if command['type'] == 'stop':
                     end_all_notes()
@@ -414,18 +438,25 @@ def chord_thread(msg_q):
                 else:
                     minor=False
                 melody = []
+            elif 'time' in command.keys():
+                if command['time'] == 4:
+                    current_fn = time_4_4
+                elif command['time'] == 3:
+                    current_fn = time_3_4
+                elif command['time'] == 2:
+                    current_fn = time_2_4
         except queue.Empty:
             pass
 
         melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
 
 
-# Queue for communication between main thread and MIDI percussion
+# Queue for communication between main thread and MIDI music
 command_queue = queue.Queue()
 
-# Start MIDI threads
-c_thread = threading.Thread(target=chord_thread, args=(command_queue,))
-c_thread.start()
+# Start MIDI thread
+m_thread = threading.Thread(target=music_thread, args=(command_queue,))
+m_thread.start()
 
 # Main program example: Change behavior via queue
 try:
@@ -450,19 +481,24 @@ try:
 
     command_queue.put({'progression': 'major'})
 
+    print("changing time????")
+    command_queue.put({'time': 3})
+    time.sleep(3)
+    #command_queue.put({'time': 2})
+
 
     #time.sleep(10)
     #print("Stopping MIDI threads")
     #command_queue.put({'type': 'stop'})
     #chord_queue.put({'type': 'stop'})
 
-    c_thread.join()
+    m_thread.join()
     print("Threads terminated.")
 
 except KeyboardInterrupt:
     print("Interrupted. Stopping...")
     command_queue.put({'type': 'stop'})
-    c_thread.join()
+    m_thread.join()
 
 
 outport.close()   

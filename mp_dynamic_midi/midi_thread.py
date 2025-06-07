@@ -152,7 +152,7 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         outport.send(msg) 
         outport.send(create_percussion_message(
                         note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+                        velocity=DEFAULT_VELOCITY)
         )  
         if i == 3:
             rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
@@ -205,7 +205,7 @@ def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         outport.send(msg) 
         outport.send(create_percussion_message(
                         note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+                        velocity=DEFAULT_VELOCITY)
         )  
         if i == 2:
             rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
@@ -258,7 +258,7 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         outport.send(msg) 
         outport.send(create_percussion_message(
                         note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY+(random.randint(-20,20)))
+                        velocity=DEFAULT_VELOCITY)
         )  
         if i == 1:
             rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
@@ -341,6 +341,12 @@ def end_all_notes():
         outport.send(create_string_off_message(note))
         outport.send(create_melody_off_message(note))
 
+# sometimes percussion MIDI dies after a while, so refresh it
+def reset_percussion():
+    outport.send(create_percussion_off_message(HI_HAT_CLOSE))
+    outport.send(create_percussion_off_message(KICK_NOTE))
+    outport.send(create_percussion_off_message(SNARE))
+
 
 # run a steady stream of string/synth notes
 def music_thread_v2(msg_q, return_q=None):
@@ -382,6 +388,7 @@ def music_thread_v2(msg_q, return_q=None):
                         current_fn = time_3_4
                     elif command['time'] == 2:
                         current_fn = time_2_4
+                    reset_percussion()
 
                 # notify main thread that we processed this command
                 return_q.put(command)

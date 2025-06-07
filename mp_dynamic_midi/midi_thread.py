@@ -6,7 +6,7 @@ import threading
 import queue
 import argparse
 
-from mido import MidiFile, tick2second
+from mido import MidiFile, tick2second, tempo2bpm
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-r", "--replay-notes", action="store_true")
@@ -48,9 +48,21 @@ def convert_time_to_sec(time):
         delta = 0
     return delta
 
+
+def can_speedup(speedup):
+    global tempo
+    bpm = tempo2bpm(tempo) / 2
+    print(bpm)
+    new_bpm = bpm / speedup
+    if new_bpm < 40 or new_bpm > 180:
+        print("Can't adjust tempo further!!")
+        return False
+    return True
+
 def adjust_tempo(speedup):
     global tempo
-    tempo *= speedup
+    tempo /= speedup # speedup is inverse bc of the way midi calculations are
+    # so 0.8 speedup is kinda like 1.2 speedup 
 
 def create_percussion_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
     return mido.Message('note_on',
@@ -341,8 +353,12 @@ def music_thread_v2(msg_q, return_q=None):
                     elif command['type'] == 'new_melody':
                         melody = []
                 elif 'tempo' in command.keys():
-                    adjust_tempo(command['tempo'])
-                    reset_percussion()
+                    perform_speedup = can_speedup(command['tempo'])
+                    if perform_speedup:
+                        adjust_tempo(command['tempo'])
+                        reset_percussion()
+                    else:
+                        continue
                 elif 'shift' in command.keys():
                     shift += command['shift']
                 elif 'progression' in command.keys():

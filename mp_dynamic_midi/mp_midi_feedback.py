@@ -17,7 +17,7 @@ from midi_thread import *
 notes = ["A", "B", "C", "D", "E", "F", "G"]
 BASE_KEY = ["C", "Major"] # 
 BASE_TIME = 4 # 4 or 3 
-BASE_TEMPO = 120
+BASE_TEMPO = 60
 
 NUM_PEOPLE = 2
 
@@ -29,9 +29,11 @@ warnings.warn = warn
 
 def send_command(note):
     if note == "A":
-        command_queue.put({'progression': 'minor'})
+        #command_queue.put({'progression': 'minor'})
+        command_queue.put({'tempo': 0.8})
     if note == "B":
-        command_queue.put({'progression': 'major'}) 
+        #command_queue.put({'progression': 'major'}) 
+        command_queue.put({'tempo': 1.2})
     if note == "C":
         command_queue.put({'time': 3})
     if note == "D":
@@ -205,10 +207,12 @@ try:
             last_mode_poses = mode_poses
             collated_poses = []
 
-        cv2.putText(bgr, f'Poses: {last_mode_poses}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
+        cv2.putText(bgr, f'Poses: {last_mode_poses}', (800,60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         #cv2.putText
-        info_string = f"Tempo: {cur_tempo}; Time: {cur_time}/4; Key: {cur_key[0]} {cur_key[1]}"
-        cv2.putText(bgr, info_string, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
+        info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
+        cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
+        cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
+        cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
 
         # Show FPS
         curr_time = time.time()

@@ -150,20 +150,10 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         sleep_time = convert_time_to_sec(msg.time)
         time.sleep(sleep_time)
         outport.send(msg) 
-        outport.send(create_percussion_message(
-                        note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY)
-        )  
+        outport.send(create_percussion_message(note=HI_HAT_CLOSE))
         if i == 3:
-            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
-            outport.send(create_percussion_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
-            outport.send(create_percussion_off_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
+            outport.send(create_percussion_message(note=SNARE))
+            outport.send(create_percussion_off_message(note=SNARE))
         if i != 0:
             msg = create_melody_off_message(melody[i-1])
             outport.send(msg)  
@@ -179,7 +169,7 @@ def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     if not melody:
         melody = []
         scale = create_scale(chord[0], minor=minor)
-        for i in range(5):
+        for i in range(7):
             melody.append(scale[random.randint(0, 7)]+OCTAVE)
     if melody and shift:
         print(shift)
@@ -203,20 +193,10 @@ def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         sleep_time = convert_time_to_sec(msg.time)
         time.sleep(sleep_time)
         outport.send(msg) 
-        outport.send(create_percussion_message(
-                        note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY)
-        )  
+        outport.send(create_percussion_message(note=HI_HAT_CLOSE))
         if i == 2:
-            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
-            outport.send(create_percussion_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
-            outport.send(create_percussion_off_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
+            outport.send(create_percussion_message(note=SNARE))
+            outport.send(create_percussion_off_message(note=SNARE))
         if i != 0:
             msg = create_melody_off_message(melody[i-1])
             outport.send(msg)  
@@ -232,7 +212,7 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     if not melody:
         melody = []
         scale = create_scale(chord[0], minor=minor)
-        for i in range(3):
+        for i in range(7):
             melody.append(scale[random.randint(0, 7)]+OCTAVE)
     if melody and shift:
         print(shift)
@@ -256,20 +236,10 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         sleep_time = convert_time_to_sec(msg.time)
         time.sleep(sleep_time)
         outport.send(msg) 
-        outport.send(create_percussion_message(
-                        note=HI_HAT_CLOSE, 
-                        velocity=DEFAULT_VELOCITY)
-        )  
-        if i == 1:
-            rand_velocity = DEFAULT_VELOCITY+(random.randint(-20,20))
-            outport.send(create_percussion_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
-            outport.send(create_percussion_off_message(
-                note=SNARE,
-                velocity=rand_velocity)
-            )
+        outport.send(create_percussion_message(note=HI_HAT_CLOSE))
+        if i == 2:
+            outport.send(create_percussion_message(note=SNARE))
+            outport.send(create_percussion_off_message(note=SNARE))
         if i != 0:
             msg = create_melody_off_message(melody[i-1])
             outport.send(msg)  
@@ -372,6 +342,7 @@ def music_thread_v2(msg_q, return_q=None):
                         melody = []
                 elif 'tempo' in command.keys():
                     adjust_tempo(command['tempo'])
+                    reset_percussion()
                 elif 'shift' in command.keys():
                     shift += command['shift']
                 elif 'progression' in command.keys():

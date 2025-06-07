@@ -11,21 +11,10 @@ from statistics import mode
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
-import pygame
-import pygame.midi
 
 from midi_thread import *
 
-pygame.mixer.init()
-pygame.mixer.music.set_volume(1.0)
-pygame.mixer.set_num_channels(5)
-pygame.midi.init()
-
-outport = pygame.midi.Output(1)
 notes = ["A", "B", "C", "D", "E", "F", "G"]
-middle_A = 57
-DEFAULT_VELOCITY = 80
-note_dir = "../notes"
 NUM_PEOPLE = 2
 
 def warn(*args, **kwargs):
@@ -33,20 +22,6 @@ def warn(*args, **kwargs):
 import warnings
 warnings.warn = warn
 
-
-def play_note(note):
-    note_number = ord(note) - ord('A') + middle_A
-    try:
-        outport.note_on(note_number, velocity=DEFAULT_VELOCITY, channel=1)
-    except Exception as e:
-        print(f"Error playing {note_number}: {e}")
-
-def turn_off_note(note):
-    note_number = ord(note) - ord('A') + middle_A
-    try:
-        outport.note_off(note_number, velocity=DEFAULT_VELOCITY, channel=1)
-    except Exception as e:
-        print(f"Error turning off {note_number}: {e}")   
 
 def send_command(note):
     if note == "A":

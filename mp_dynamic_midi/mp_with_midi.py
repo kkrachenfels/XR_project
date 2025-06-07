@@ -53,10 +53,10 @@ def send_command(note):
         command_queue.put({'shift': 1})
     if note == "D":
         command_queue.put({'shift': -1})
-
     if note == "A":
         command_queue.put({'progression': 'minor'})
-    
+    if note == "C":
+        command_queue.put({'progression': 'major'}) 
     if note == "stop":
         command_queue.put({'type': 'stop'})
 

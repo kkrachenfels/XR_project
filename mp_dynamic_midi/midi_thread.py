@@ -280,50 +280,6 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
     return melody
 
 
-
-
-def upper_inversion(chord, replay_notes=False):
-    chord.sort()
-    if chord[-1] + OCTAVE > MAX_NOTE:
-        print("Chord can't be raised further...")
-        return
-    
-    if replay_notes:
-        end_current_chord(chord)
-        chord[0] += OCTAVE
-        play_new_chord(chord)
-        return
-    
-    stop_old_note_msg = create_string_off_message(chord[0])
-    outport.send(stop_old_note_msg)
-
-    # invert by adding an octave to the top chord note
-    chord[0] += OCTAVE
-    start_new_note_msg = create_string_on_message(chord[0])
-    outport.send(start_new_note_msg)
-
-
-def lower_inversion(chord, replay_notes=False):
-    chord.sort()
-    if chord[-1] - OCTAVE < MIN_NOTE:
-        print("Chord can't be lowered further...")
-        return
-    
-    if replay_notes:
-        end_current_chord(chord)
-        chord[-1] -= OCTAVE
-        play_new_chord(chord)
-        return
-    
-    stop_old_note_msg = create_string_off_message(chord[-1])
-    outport.send(stop_old_note_msg)
-
-    # invert by lowering an octave from the top chord note
-    chord[-1] -= OCTAVE
-    start_new_note_msg = create_string_off_message(chord[-1])
-    outport.send(start_new_note_msg) 
-
-
 # neg number to go down
 def shift_chord_semitones(chord, semitones=1):
     end_current_chord(chord)
@@ -378,27 +334,6 @@ def shift_minor_chord(chord, replay_notes=False):
             start_new_note_msg = create_string_on_message(chord[1])
             outport.send(start_new_note_msg)
 
-    '''
-    # find the major third interval, and make it a minor third
-    chord.sort()
-    full_chord = chord + [chord[0] + OCTAVE]
-    for i in range(len(full_chord)-1):
-        if full_chord[i] + 3 == full_chord[i+1]:
-            if replay_notes:
-                end_current_chord(chord)
-                chord[i] -= 1
-                play_new_chord(chord)
-                return
-
-            stop_old_note_msg = create_string_off_message(chord[i])
-            outport.send(stop_old_note_msg)
-
-            chord[i] -= 1
-    
-            start_new_note_msg = create_string_on_message(chord[i])
-            outport.send(start_new_note_msg)
-    '''
-
 
 
 def end_all_notes():
@@ -447,61 +382,14 @@ def music_thread_v2(msg_q, return_q=None):
                         current_fn = time_3_4
                     elif command['time'] == 2:
                         current_fn = time_2_4
+
+                # notify main thread that we processed this command
+                return_q.put(command)
         except queue.Empty:
             pass
 
         melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
 
-
-
-
-
-
-
-
-# run a steady stream of string/synth notes
-def music_thread(msg_q, return_q=None):
-    running = True
-    current_chord = c_maj_chord
-    melody = None
-    shift = 0
-    current_fn = time_4_4
-    minor = False
-    while running:
-        shift = 0
-        try:
-            # Non-blocking check for new commands
-            command = msg_q.get_nowait()
-
-            if 'type' in command.keys():
-                if command['type'] == 'stop':
-                    end_all_notes()
-                    running = False
-                    break
-                elif command['type'] == 'new_melody':
-                    melody = []
-            elif 'tempo' in command.keys():
-                adjust_tempo(command['tempo'])
-            elif 'shift' in command.keys():
-                shift = command['shift']
-            elif 'progression' in command.keys():
-                end_all_notes()
-                if command['progression'] == 'minor':
-                    minor=True
-                else:
-                    minor=False
-                melody = []
-            elif 'time' in command.keys():
-                if command['time'] == 4:
-                    current_fn = time_4_4
-                elif command['time'] == 3:
-                    current_fn = time_3_4
-                elif command['time'] == 2:
-                    current_fn = time_2_4
-        except queue.Empty:
-            pass
-
-        melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
 
 
 
@@ -511,7 +399,7 @@ if __name__ == "__ main __":
     command_queue = queue.Queue()
 
     # Start MIDI thread
-    m_thread = threading.Thread(target=music_thread, args=(command_queue,))
+    m_thread = threading.Thread(target=music_thread_v2, args=(command_queue,))
     m_thread.start()
 
     try:

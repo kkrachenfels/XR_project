@@ -48,9 +48,9 @@ def convert_time_to_sec(time):
         delta = 0
     return delta
 
-def adjust_tempo(new_tempo):
+def adjust_tempo(speedup):
     global tempo
-    tempo = new_tempo
+    tempo *= speedup
 
 def create_percussion_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
     return mido.Message('note_on',
@@ -404,10 +404,63 @@ def shift_minor_chord(chord, replay_notes=False):
 def end_all_notes():
     for note in range(MIN_NOTE, MAX_NOTE+1):
         outport.send(create_string_off_message(note))
+        outport.send(create_melody_off_message(note))
 
 
 # run a steady stream of string/synth notes
-def music_thread(msg_q):
+def music_thread_v2(msg_q, return_q=None):
+    running = True
+    current_chord = c_maj_chord
+    melody = None
+    shift = 0
+    current_fn = time_4_4
+    minor = False
+    while running:
+        shift = 0
+        command = None
+        try:
+            # Non-blocking check for new commands
+            while command := msg_q.get_nowait():
+                print(f"====>{command}")
+                if 'type' in command.keys():
+                    if command['type'] == 'stop':
+                        end_all_notes()
+                        running = False
+                        break
+                    elif command['type'] == 'new_melody':
+                        melody = []
+                elif 'tempo' in command.keys():
+                    adjust_tempo(command['tempo'])
+                elif 'shift' in command.keys():
+                    shift += command['shift']
+                elif 'progression' in command.keys():
+                    end_all_notes()
+                    if command['progression'] == 'minor':
+                        minor=True
+                    else:
+                        minor=False
+                    melody = []
+                elif 'time' in command.keys():
+                    if command['time'] == 4:
+                        current_fn = time_4_4
+                    elif command['time'] == 3:
+                        current_fn = time_3_4
+                    elif command['time'] == 2:
+                        current_fn = time_2_4
+        except queue.Empty:
+            pass
+
+        melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
+
+
+
+
+
+
+
+
+# run a steady stream of string/synth notes
+def music_thread(msg_q, return_q=None):
     running = True
     current_chord = c_maj_chord
     melody = None
@@ -451,54 +504,55 @@ def music_thread(msg_q):
         melody = current_fn(current_chord, melody=melody, shift=shift, minor=minor)
 
 
-# Queue for communication between main thread and MIDI music
-command_queue = queue.Queue()
 
-# Start MIDI thread
-m_thread = threading.Thread(target=music_thread, args=(command_queue,))
-m_thread.start()
+# test midi thread commands by itself before using mediapipe
+if __name__ == "__ main __":
+    # Queue for communication between main thread and MIDI music
+    command_queue = queue.Queue()
 
-# Main program example: Change behavior via queue
-try:
-    #time.sleep(1)
-    print("Upping tempo")
-    command_queue.put({'tempo': 300000})
+    # Start MIDI thread
+    m_thread = threading.Thread(target=music_thread, args=(command_queue,))
+    m_thread.start()
 
-    #command_queue.put({'type': 'new_melody'})
+    try:
+        #time.sleep(1)
+        print("Upping tempo")
+        command_queue.put({'tempo': 300000})
 
-    #command_queue.put({'invert': 1})
-    #command_queue.put({'invert': -1})
+        #command_queue.put({'type': 'new_melody'})
 
-    print("Randomly shifting the semitones of the chord up/down within -12 to 12")
-    for i in range(1):
-        random_semitones = random.randint(-12, 12)
-        command_queue.put({'shift': random_semitones})
-        #command_queue.put({'type': 'new_melody'}) 
-    command_queue.put({'progression': 'minor'})
-    for i in range(1):
-        random_semitones = random.randint(-12, 12)
-        command_queue.put({'shift': random_semitones})
+        #command_queue.put({'invert': 1})
+        #command_queue.put({'invert': -1})
 
-    command_queue.put({'progression': 'major'})
+        print("Randomly shifting the semitones of the chord up/down within -12 to 12")
+        for i in range(1):
+            random_semitones = random.randint(-12, 12)
+            command_queue.put({'shift': random_semitones})
+            #command_queue.put({'type': 'new_melody'}) 
+        command_queue.put({'progression': 'minor'})
+        for i in range(1):
+            random_semitones = random.randint(-12, 12)
+            command_queue.put({'shift': random_semitones})
 
-    print("changing time????")
-    command_queue.put({'time': 3})
-    time.sleep(3)
-    #command_queue.put({'time': 2})
+        command_queue.put({'progression': 'major'})
 
-
-    #time.sleep(10)
-    #print("Stopping MIDI threads")
-    #command_queue.put({'type': 'stop'})
-    #chord_queue.put({'type': 'stop'})
-
-    m_thread.join()
-    print("Threads terminated.")
-
-except KeyboardInterrupt:
-    print("Interrupted. Stopping...")
-    command_queue.put({'type': 'stop'})
-    m_thread.join()
+        print("changing time????")
+        command_queue.put({'time': 3})
+        time.sleep(3)
+        #command_queue.put({'time': 2})
 
 
-outport.close()   
+        #time.sleep(10)
+        #print("Stopping MIDI threads")
+        #command_queue.put({'type': 'stop'})
+        #chord_queue.put({'type': 'stop'})
+
+        m_thread.join()
+        print("Threads terminated.")
+
+    except KeyboardInterrupt:
+        print("Interrupted. Stopping...")
+        command_queue.put({'type': 'stop'})
+        m_thread.join()
+
+    outport.close()   

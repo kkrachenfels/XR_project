@@ -49,14 +49,18 @@ def turn_off_note(note):
         print(f"Error turning off {note_number}: {e}")   
 
 def send_command(note):
-    if note == "E":
-        command_queue.put({'shift': 1})
-    if note == "D":
-        command_queue.put({'shift': -1})
     if note == "A":
         command_queue.put({'progression': 'minor'})
-    if note == "C":
+    if note == "B":
         command_queue.put({'progression': 'major'}) 
+    if note == "C":
+        command_queue.put({'time': 3})
+    if note == "D":
+        command_queue.put({'time': 4})
+    if note == "E":
+        command_queue.put({'shift': 1})
+    if note == "F":
+        command_queue.put({'shift': -1})
     if note == "stop":
         command_queue.put({'type': 'stop'})
 

@@ -357,8 +357,8 @@ def music_thread_v2(msg_q, return_q=None):
                     if perform_speedup:
                         adjust_tempo(command['tempo'])
                         reset_percussion()
-                    else:
-                        continue
+                        return_q.put({'tempo': (tempo2bpm(tempo)/2)})
+                    continue
                 elif 'shift' in command.keys():
                     shift += command['shift']
                 elif 'progression' in command.keys():

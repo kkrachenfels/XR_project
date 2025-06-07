@@ -160,7 +160,7 @@ try:
             print(f"===>Got feedback: {feedback}===")
 
             if 'tempo' in feedback.keys():
-                cur_tempo *= feedback['tempo']
+                cur_tempo = feedback['tempo']
             elif 'progression' in feedback.keys():
                 cur_key[1] = feedback['progression']
             elif 'time' in feedback.keys():

@@ -128,23 +128,19 @@ def draw_landmarks(rgb_image, results):
 
 
 # Main loop
-print("Press 'q' to quit.")
 prev_time = time.time()
-
 
 # Q for communication to MIDI music thread
 command_queue = queue.Queue()
-# Q for communication back to main thread
 return_queue = queue.Queue()
 
-# Start MIDI thread
 m_thread = threading.Thread(target=music_thread_v2, args=(command_queue, return_queue))
 m_thread.start()
 
-collated_poses = []
-last_mode_poses = []
-
 frame_count = 0
+last_progression = None
+MAJOR_THRESHOLD = 1.1
+MINOR_THRESHOLD = 0.9
 
 try: 
     while cap.isOpened():
@@ -153,11 +149,8 @@ try:
             print("Webcam read failed.")
             break
 
-        # Convert to RGB and wrap in MediaPipe Image
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-
-        # Provide timestamp for VIDEO mode
         timestamp_ms = int(time.time() * 1000)
         results = landmarker.detect_for_video(mp_image, timestamp_ms)
         
@@ -168,23 +161,27 @@ try:
                 if openness is not None:
                     openness_scores.append(openness)
 
-            # average over people
             if openness_scores:
                 avg_openness = np.mean(openness_scores)
 
-                # Map openness to a progression (0 = minor, 1 = major)
-                if avg_openness < 1.0:
-                    progression = 'minor'
-                else:
-                    progression = 'major'
+                if last_progression == 'major' and avg_openness < MINOR_THRESHOLD:
+                    command_queue.put({'progression': 'minor'})
+                    print(f"Openness: {avg_openness:.2f} → minor")
+                    last_progression = 'minor'
+                elif last_progression == 'minor' and avg_openness > MAJOR_THRESHOLD:
+                    command_queue.put({'progression': 'major'})
+                    print(f"Openness: {avg_openness:.2f} → major")
+                    last_progression = 'major'
+                elif last_progression is None:
+                    # Initial assignment if nothing sent yet
+                    if avg_openness < 1.0:
+                        progression = 'minor'
+                    else:
+                        progression = 'major'
+                    command_queue.put({'progression': progression})
+                    print(f"Openness: {avg_openness:.2f} → {progression}")
+                    last_progression = progression
 
-                command_queue.put({'progression': progression})
-                print(f"Openness: {avg_openness:.2f} → {progression}")
-
-
-        # Draw and show
-        # annotated = draw_landmarks(rgb, results)
-        # bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
         if results.pose_landmarks:
             annotated = draw_landmarks(rgb, results)
         else:
@@ -192,34 +189,8 @@ try:
 
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
 
+        cv2.putText(bgr, f'Progression: {last_progression}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 4)
 
-        #cur_poses = predict_classes(results.pose_landmarks)
-        #cur_poses += [0] * (NUM_PEOPLE - len(cur_poses))
-        #collated_poses.append(cur_poses)
-
-        # if frame_count % 30 == 0:
-        #     collated_poses = np.array(collated_poses)
-        #     mode_poses = []
-        #     for column in collated_poses.T:
-        #         m = mode(column)
-        #         if m != '0': mode_poses.append(mode(column))
-
-        #     print(mode_poses)
-        #     for i, pose in enumerate(mode_poses):
-        #         if pose in notes:
-        #             print(f"playing pose {pose}")
-        #             #play_note(pose)
-        #             send_command(pose)
-        #     for i, pose in enumerate(last_detected_poses):
-        #         if pose not in cur_poses:
-        #             #turn_off_note(pose)
-        #             pass
-        #     last_mode_poses = mode_poses
-        #     collated_poses = []
-
-        cv2.putText(bgr, f'Poses: {last_mode_poses}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 6)
-
-        # Show FPS
         curr_time = time.time()
         fps = 1 / (curr_time - prev_time)
         prev_time = curr_time
@@ -233,12 +204,11 @@ try:
 
     cap.release()
     cv2.destroyAllWindows()
-    send_command("stop")
+    command_queue.put({'type': 'stop'})
     m_thread.join()
 
 except KeyboardInterrupt:
     cap.release()
     cv2.destroyAllWindows()
-    send_command("stop")
+    command_queue.put({'type': 'stop'})
     m_thread.join()
-

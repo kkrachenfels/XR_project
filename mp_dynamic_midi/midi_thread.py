@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 outport = mido.open_output('IAC Driver Bus 1', autoreset=True)
 
-MIN_NOTE = 21
+MIN_NOTE = 9
 MAX_NOTE = 108
 OCTAVE = 12 # semitones
 DEFAULT_VELOCITY = 64
@@ -268,7 +268,7 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
 # neg number to go down
 def shift_chord_semitones(chord, semitones=1):
     end_current_chord(chord)
-    if semitones > 0 and (max(chord) + semitones > (MAX_NOTE - OCTAVE)):
+    if semitones > 0 and (max(chord) + semitones > (MAX_NOTE)):
         print("Chord can't be raised further...")
         return
     elif semitones < 0 and (min(chord) - semitones < MIN_NOTE):

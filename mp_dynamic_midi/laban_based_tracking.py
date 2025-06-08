@@ -4,10 +4,8 @@ import numpy as np
 import time
 import joblib
 import argparse
-import os
 import threading
 import queue
-from statistics import mode
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
@@ -15,7 +13,22 @@ from mediapipe.framework.formats import landmark_pb2
 from midi_thread import *
 
 notes = ["A", "B", "C", "D", "E", "F", "G"]
+BASE_KEY = ["C", "major"] # 
+BASE_TIME = 4 # 4 or 3 
+BASE_TEMPO = 60
+
 NUM_PEOPLE = 2
+
+ap = argparse.ArgumentParser()
+
+ap.add_argument("--pose-model", type=str, default='../models/best_natural_pose_model.pkl',
+                help="name of the saved pickled model")
+ap.add_argument("--mp-model", type=str, default="../pose_landmarker_full.task",
+                help="path of the mediapipe model to use (.task file)")
+args = vars(ap.parse_args())
+
+model_path = args['mp_model']
+pose_model_path = args['pose_model']
 
 def calculate_average_velocity(curr_landmarks, prev_landmarks):
     if prev_landmarks is None:
@@ -87,41 +100,15 @@ def calculate_arm_openness(pose_landmarks):
         return min(max(openness, 0.0), 2.0)  # clamp to [0, 2] just in case
     except:
         return None
-
-
-def warn(*args, **kwargs):
-    pass
-import warnings
-warnings.warn = warn
-
-
-def send_command(note):
-    if note == "A":
-        command_queue.put({'progression': 'minor'})
-    if note == "B":
-        command_queue.put({'progression': 'major'}) 
-    if note == "C":
-        command_queue.put({'time': 3})
-    if note == "D":
-        command_queue.put({'time': 4})
-    if note == "E":
-        command_queue.put({'shift': 1})
-    if note == "F":
-        command_queue.put({'shift': -1})
-    if note == "stop":
-        command_queue.put({'type': 'stop'})
-
-
-ap = argparse.ArgumentParser()
-
-ap.add_argument("--pose-model", type=str, default='../models/best_natural_pose_model.pkl',
-                help="name of the saved pickled model")
-ap.add_argument("--mp-model", type=str, default="../pose_landmarker_full.task",
-                help="path of the mediapipe model to use (.task file)")
-args = vars(ap.parse_args())
-
-model_path = args['mp_model']
-pose_model_path = args['pose_model']
+    
+def calculate_new_key(note, shift):
+    note_int = ord(note.upper())
+    note_int += shift
+    if note_int < 65:
+        note_int += 7
+    if note_int > 71:
+        note_int -= 7
+    return chr(note_int)
 
 # Set up video capture
 cap = cv2.VideoCapture(0)  # or 1 for external cam
@@ -203,12 +190,33 @@ TEMPO_COOLDOWN = 1.0  # seconds between tempo changes
 landmark_history = {}  # to track previous landmarks for each person
 
 
+cur_key = BASE_KEY
+cur_tempo = BASE_TEMPO
+cur_time = BASE_TIME
+
 try: 
     while cap.isOpened():
         success, frame = cap.read()
         if not success:
             print("Webcam read failed.")
             break
+
+        # handle feedback from the midi thread
+        try:
+            feedback = return_queue.get_nowait()
+            print(f"===>Got feedback: {feedback}===")
+
+            if 'tempo' in feedback.keys():
+                cur_tempo = feedback['tempo']
+            elif 'progression' in feedback.keys():
+                cur_key[1] = feedback['progression']
+            elif 'time' in feedback.keys():
+                cur_time = feedback['time']
+            elif 'shift' in feedback.keys():
+                cur_key[0] = calculate_new_key(cur_key[0], feedback['shift'])
+        except queue.Empty:
+            pass
+        # end feedback handling
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -305,12 +313,15 @@ try:
 
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
 
-        cv2.putText(bgr, f'Progression: {last_progression}', (10,60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 4)
+        info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
+        cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
+        cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
+        cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
 
         curr_time = time.time()
         fps = 1 / (curr_time - prev_time)
         prev_time = curr_time
-        cv2.putText(bgr, f'FPS: {int(fps)}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 6)
+        cv2.putText(bgr, f'FPS: {int(fps)}', (1000, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 6)
 
         cv2.imshow("PoseLandmarker - Multi Person", bgr)
         if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -319,11 +319,6 @@ try:
         cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
 
-        curr_time = time.time()
-        fps = 1 / (curr_time - prev_time)
-        prev_time = curr_time
-        cv2.putText(bgr, f'FPS: {int(fps)}', (1000, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 6)
-
         cv2.imshow("PoseLandmarker - Multi Person", bgr)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

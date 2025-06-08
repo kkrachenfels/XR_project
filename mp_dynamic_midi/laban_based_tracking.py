@@ -234,8 +234,8 @@ try:
                 command_queue.put({'time': 4})  # 4/4 time
                 print(f"3D Distance: {distance:.3f} → Time Signature: 4/4")
             else:
-                command_queue.put({'time': 2})  # 2/4 time
-                print(f"3D Distance: {distance:.3f} → Time Signature: 2/4")
+                command_queue.put({'time': 3})  # 3/4 time
+                print(f"3D Distance: {distance:.3f} → Time Signature: 3/4")
 
         
         if results.pose_landmarks:
@@ -292,7 +292,7 @@ try:
                 avg_velocity = np.mean(avg_velocities)
                 
                 # play with values
-                min_vel = 0.0005
+                min_vel = 0.005
                 max_vel = 0.05
                 min_factor = 1.5
                 max_factor = 0.5
@@ -301,7 +301,7 @@ try:
                 velocity_norm = (clamped_velocity - min_vel) / (max_vel - min_vel)
                 tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
 
-                if abs(tempo_factor - last_tempo_factor) > 0.00001 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
+                if abs(tempo_factor - last_tempo_factor) > 0.001 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
                     command_queue.put({'tempo': tempo_factor})
                     print(f"Avg velocity: {avg_velocity:.4f} → Tempo factor: {tempo_factor:.2f}")
                     last_tempo_factor = tempo_factor

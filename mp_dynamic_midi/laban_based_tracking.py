@@ -17,6 +17,38 @@ from midi_thread import *
 notes = ["A", "B", "C", "D", "E", "F", "G"]
 NUM_PEOPLE = 2
 
+def calculate_average_velocity(curr_landmarks, prev_landmarks):
+    if prev_landmarks is None:
+        return 0
+
+    total_dist = 0
+    count = 0
+    for i in range(min(len(curr_landmarks), len(prev_landmarks))):
+        dx = curr_landmarks[i].x - prev_landmarks[i].x
+        dy = curr_landmarks[i].y - prev_landmarks[i].y
+        dz = curr_landmarks[i].z - prev_landmarks[i].z
+        dist = (dx**2 + dy**2 + dz**2) ** 0.5
+        total_dist += dist
+        count += 1
+
+    return total_dist / count if count > 0 else 0
+
+def calculate_pairwise_distance(p1_landmarks, p2_landmarks):
+    # Use midpoint of the torso for better spatial estimate
+    keypoints = [mp.solutions.pose.PoseLandmark.LEFT_SHOULDER,
+                 mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER,
+                 mp.solutions.pose.PoseLandmark.LEFT_HIP,
+                 mp.solutions.pose.PoseLandmark.RIGHT_HIP]
+
+    distances = []
+    for kp in keypoints:
+        l1 = p1_landmarks[kp]
+        l2 = p2_landmarks[kp]
+        dist = np.sqrt((l1.x - l2.x) ** 2 + (l1.y - l2.y) ** 2 + (l1.z - l2.z) ** 2)
+        distances.append(dist)
+
+    return np.mean(distances)  # average torso distance in 3D
+
 def calculate_arm_lift_shift(pose_landmarks, max_shift=6):
     try:
         # Use average height of wrists compared to shoulders
@@ -165,6 +197,11 @@ MINOR_THRESHOLD = 0.9
 last_sent_shift = 0
 last_shift_time = 0
 SHIFT_COOLDOWN = 1.0
+last_tempo_factor = 1.0  # default tempo factor (1.0 = unchanged)
+last_tempo_sent_time = 0
+TEMPO_COOLDOWN = 1.0  # seconds between tempo changes
+landmark_history = {}  # to track previous landmarks for each person
+
 
 try: 
     while cap.isOpened():
@@ -177,6 +214,21 @@ try:
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms = int(time.time() * 1000)
         results = landmarker.detect_for_video(mp_image, timestamp_ms)
+        
+        
+        if len(results.pose_landmarks) >= 2:
+            person1 = results.pose_landmarks[0]
+            person2 = results.pose_landmarks[1]
+            distance = calculate_pairwise_distance(person1, person2)
+
+            # Thresholds may need tuning
+            if distance < 0.4:
+                command_queue.put({'time': 4})  # 4/4 time
+                print(f"3D Distance: {distance:.3f} → Time Signature: 4/4")
+            else:
+                command_queue.put({'time': 2})  # 2/4 time
+                print(f"3D Distance: {distance:.3f} → Time Signature: 2/4")
+
         
         if results.pose_landmarks:
             openness_scores = []
@@ -218,6 +270,33 @@ try:
                     print(f"Vertical arm delta → Shift: {avg_shift:+}")
                     last_sent_shift = avg_shift
                     last_shift_time = now
+            
+            now = time.time()
+            avg_velocities = []
+
+            for i, pose_landmarks in enumerate(results.pose_landmarks):
+                prev = landmark_history.get(i)
+                velocity = calculate_average_velocity(pose_landmarks, prev)
+                avg_velocities.append(velocity)
+                landmark_history[i] = pose_landmarks  # update history
+
+            if avg_velocities:
+                avg_velocity = np.mean(avg_velocities)
+
+                min_vel = 0.005
+                max_vel = 0.05
+                min_factor = 1.5
+                max_factor = 0.5
+
+                clamped_velocity = np.clip(avg_velocity, min_vel, max_vel)
+                velocity_norm = (clamped_velocity - min_vel) / (max_vel - min_vel)
+                tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
+
+                if abs(tempo_factor - last_tempo_factor) > 0.01 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
+                    command_queue.put({'tempo': tempo_factor})
+                    print(f"Avg velocity: {avg_velocity:.4f} → Tempo factor: {tempo_factor:.2f}")
+                    last_tempo_factor = tempo_factor
+                    last_tempo_sent_time = now
 
         if results.pose_landmarks:
             annotated = draw_landmarks(rgb, results)

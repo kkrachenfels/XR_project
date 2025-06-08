@@ -51,9 +51,8 @@ def convert_time_to_sec(time):
 
 def can_speedup(speedup):
     global tempo
-    bpm = tempo2bpm(tempo) / 2
-    print(bpm)
-    new_bpm = bpm / speedup
+    new_bpm = int(tempo2bpm(tempo / speedup * 2))
+    print(new_bpm)
     if new_bpm < 40 or new_bpm > 180:
         print("Can't adjust tempo further!!")
         return False
@@ -61,7 +60,8 @@ def can_speedup(speedup):
 
 def adjust_tempo(speedup):
     global tempo
-    tempo /= speedup # speedup is inverse bc of the way midi calculations are
+    new_tempo = (tempo / speedup)
+    tempo = new_tempo # speedup is inverse bc of the way midi calculations are
     # so 0.8 speedup is kinda like 1.2 speedup 
 
 def create_percussion_message(note=KICK_NOTE, velocity=DEFAULT_VELOCITY):
@@ -388,24 +388,30 @@ def music_thread_v2(msg_q, return_q=None):
 
 
 # test midi thread commands by itself before using mediapipe
-if __name__ == "__ main __":
+if __name__ == "__main__":
     # Queue for communication between main thread and MIDI music
     command_queue = queue.Queue()
+    return_queue = queue.Queue()
 
     # Start MIDI thread
-    m_thread = threading.Thread(target=music_thread_v2, args=(command_queue,))
+    m_thread = threading.Thread(target=music_thread_v2, args=(command_queue,return_queue))
     m_thread.start()
+
 
     try:
         #time.sleep(1)
         print("Upping tempo")
-        command_queue.put({'tempo': 300000})
+        for i in range(8):
+            command_queue.put({'tempo': 0.8})
+            time.sleep(1)
 
         #command_queue.put({'type': 'new_melody'})
 
         #command_queue.put({'invert': 1})
         #command_queue.put({'invert': -1})
 
+        
+        '''
         print("Randomly shifting the semitones of the chord up/down within -12 to 12")
         for i in range(1):
             random_semitones = random.randint(-12, 12)
@@ -428,6 +434,7 @@ if __name__ == "__ main __":
         #print("Stopping MIDI threads")
         #command_queue.put({'type': 'stop'})
         #chord_queue.put({'type': 'stop'})
+        '''
 
         m_thread.join()
         print("Threads terminated.")

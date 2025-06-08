@@ -203,17 +203,17 @@ try:
 
         # handle feedback from the midi thread
         try:
-            feedback = return_queue.get_nowait()
-            print(f"===>Got feedback: {feedback}===")
+            while feedback := return_queue.get_nowait():
+                print(f"===>Got feedback: {feedback}===")
 
-            if 'tempo' in feedback.keys():
-                cur_tempo = feedback['tempo']
-            elif 'progression' in feedback.keys():
-                cur_key[1] = feedback['progression']
-            elif 'time' in feedback.keys():
-                cur_time = feedback['time']
-            elif 'shift' in feedback.keys():
-                cur_key[0] = calculate_new_key(cur_key[0], feedback['shift'])
+                if 'tempo' in feedback.keys():
+                    cur_tempo = feedback['tempo']
+                elif 'progression' in feedback.keys():
+                    cur_key[1] = feedback['progression']
+                elif 'time' in feedback.keys():
+                    cur_time = feedback['time']
+                elif 'shift' in feedback.keys():
+                    cur_key[0] = calculate_new_key(cur_key[0], feedback['shift'])
         except queue.Empty:
             pass
         # end feedback handling

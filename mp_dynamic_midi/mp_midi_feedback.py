@@ -146,6 +146,11 @@ cur_key = BASE_KEY
 cur_tempo = BASE_TEMPO
 cur_time = BASE_TIME
 
+# key signature reference img
+overlay_img = cv2.imread('imgs/circle_5ths.jpeg', cv2.IMREAD_UNCHANGED)
+overlay_img = cv2.resize(overlay_img, (200, 200))  # Resize to 100×100 pixels
+overlay_h, overlay_w = overlay_img.shape[:2]
+
 try: 
     while cap.isOpened():
         feedback = None
@@ -170,6 +175,12 @@ try:
         except queue.Empty:
             pass
         # end feedback handling
+
+        # overlay circle of 5ths maybe
+        frame_h, frame_w = frame.shape[:2]
+        x_offset = 10  # 10 px from the left
+        y_offset = frame_h - overlay_h - 10  # 10 px from the bottom
+        frame[y_offset:y_offset+overlay_h, x_offset:x_offset+overlay_w] = overlay_img
 
         # Convert to RGB and wrap in MediaPipe Image
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -210,8 +221,8 @@ try:
         cv2.putText(bgr, f'Poses: {last_mode_poses}', (800,60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         #cv2.putText
         info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
-        cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
-        cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
+        cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
+        cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 6)
 
         # Show FPS

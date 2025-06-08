@@ -15,7 +15,7 @@ from mediapipe.framework.formats import landmark_pb2
 from midi_thread import *
 
 notes = ["A", "B", "C", "D", "E", "F", "G"]
-BASE_KEY = ["C", "Major"] # 
+BASE_KEY = ["C", "major"] # 
 BASE_TIME = 4 # 4 or 3 
 BASE_TEMPO = 60
 

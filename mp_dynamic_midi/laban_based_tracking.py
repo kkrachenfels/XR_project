@@ -62,7 +62,7 @@ def calculate_pairwise_distance(p1_landmarks, p2_landmarks):
 
     return np.mean(distances)  # average torso distance in 3D
 
-def calculate_arm_lift_shift(pose_landmarks, max_shift=6):
+def calculate_arm_lift_shift(pose_landmarks, max_shift=4):
     try:
         # Use average height of wrists compared to shoulders
         left_shoulder_y = pose_landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER].y
@@ -179,8 +179,8 @@ m_thread.start()
 
 frame_count = 0
 last_progression = None
-MAJOR_THRESHOLD = 1.1
-MINOR_THRESHOLD = 0.9
+MAJOR_THRESHOLD = 1.3
+MINOR_THRESHOLD = 1.2
 last_sent_shift = 0
 last_shift_time = 0
 SHIFT_COOLDOWN = 1.0
@@ -230,7 +230,7 @@ try:
             distance = calculate_pairwise_distance(person1, person2)
 
             # Thresholds may need tuning
-            if distance < 0.4:
+            if distance < 0.2:
                 command_queue.put({'time': 4})  # 4/4 time
                 print(f"3D Distance: {distance:.3f} → Time Signature: 4/4")
             else:

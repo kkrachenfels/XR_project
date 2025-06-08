@@ -104,9 +104,9 @@ def calculate_arm_openness(pose_landmarks):
 def calculate_new_key(note, shift):
     note_int = ord(note.upper())
     note_int += shift
-    if note_int < 65:
+    while note_int < 65:
         note_int += 7
-    if note_int > 71:
+    while note_int > 71:
         note_int -= 7
     return chr(note_int)
 

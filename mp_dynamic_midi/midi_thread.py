@@ -163,6 +163,7 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         time.sleep(sleep_time)
         outport.send(msg) 
         outport.send(create_percussion_message(note=HI_HAT_CLOSE))
+        outport.send(create_percussion_off_message(note=HI_HAT_CLOSE))
         if i == 3:
             outport.send(create_percussion_message(note=SNARE))
             outport.send(create_percussion_off_message(note=SNARE))
@@ -206,6 +207,7 @@ def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         time.sleep(sleep_time)
         outport.send(msg) 
         outport.send(create_percussion_message(note=HI_HAT_CLOSE))
+        outport.send(create_percussion_off_message(note=HI_HAT_CLOSE))
         if i == 2:
             outport.send(create_percussion_message(note=SNARE))
             outport.send(create_percussion_off_message(note=SNARE))
@@ -249,6 +251,7 @@ def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
         time.sleep(sleep_time)
         outport.send(msg) 
         outport.send(create_percussion_message(note=HI_HAT_CLOSE))
+        outport.send(create_percussion_off_message(note=HI_HAT_CLOSE))
         if i == 2:
             outport.send(create_percussion_message(note=SNARE))
             outport.send(create_percussion_off_message(note=SNARE))

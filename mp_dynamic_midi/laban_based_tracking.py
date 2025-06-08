@@ -17,6 +17,27 @@ from midi_thread import *
 notes = ["A", "B", "C", "D", "E", "F", "G"]
 NUM_PEOPLE = 2
 
+def calculate_arm_lift_shift(pose_landmarks, max_shift=6):
+    try:
+        # Use average height of wrists compared to shoulders
+        left_shoulder_y = pose_landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER].y
+        right_shoulder_y = pose_landmarks[mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER].y
+        left_wrist_y = pose_landmarks[mp.solutions.pose.PoseLandmark.LEFT_WRIST].y
+        right_wrist_y = pose_landmarks[mp.solutions.pose.PoseLandmark.RIGHT_WRIST].y
+
+        shoulder_y = (left_shoulder_y + right_shoulder_y) / 2
+        wrist_y = (left_wrist_y + right_wrist_y) / 2
+
+        # Negative if arms are raised
+        delta = shoulder_y - wrist_y
+
+        # Map range: roughly [-0.5, +0.5] → [-max_shift, +max_shift]
+        shift = int(np.clip(delta * 20, -max_shift, max_shift)) # max so far is +/- 6
+        return shift
+    except:
+        return 0
+
+
 def calculate_arm_openness(pose_landmarks):
     # Only valid if both shoulders and wrists are detected
     try:
@@ -141,6 +162,9 @@ frame_count = 0
 last_progression = None
 MAJOR_THRESHOLD = 1.1
 MINOR_THRESHOLD = 0.9
+last_sent_shift = 0
+last_shift_time = 0
+SHIFT_COOLDOWN = 1.0
 
 try: 
     while cap.isOpened():
@@ -173,14 +197,27 @@ try:
                     print(f"Openness: {avg_openness:.2f} → major")
                     last_progression = 'major'
                 elif last_progression is None:
-                    # Initial assignment if nothing sent yet
-                    if avg_openness < 1.0:
-                        progression = 'minor'
-                    else:
-                        progression = 'major'
+                    progression = 'minor' if avg_openness < 1.0 else 'major'
                     command_queue.put({'progression': progression})
                     print(f"Openness: {avg_openness:.2f} → {progression}")
                     last_progression = progression
+
+            
+            shifts = []
+            for pose in results.pose_landmarks:
+                shift = calculate_arm_lift_shift(pose)
+                shifts.append(shift)
+
+            if shifts:
+                avg_shift = int(np.round(np.mean(shifts)))
+                now = time.time()
+
+                # Only send if shift changed AND cooldown has passed
+                if avg_shift != last_sent_shift and (now - last_shift_time) > SHIFT_COOLDOWN:
+                    command_queue.put({'shift': avg_shift - last_sent_shift})
+                    print(f"Vertical arm delta → Shift: {avg_shift:+}")
+                    last_sent_shift = avg_shift
+                    last_shift_time = now
 
         if results.pose_landmarks:
             annotated = draw_landmarks(rgb, results)

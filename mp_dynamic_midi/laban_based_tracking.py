@@ -292,7 +292,7 @@ try:
                 avg_velocity = np.mean(avg_velocities)
                 
                 # play with values
-                min_vel = 0.005
+                min_vel = 0.003
                 max_vel = 0.05
                 min_factor = 1.5
                 max_factor = 0.5
@@ -314,6 +314,7 @@ try:
 
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
 
+        cv2.rectangle(bgr,(0, 0),(450, 200) ,(0, 0, 0), -1)
         info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
         cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)

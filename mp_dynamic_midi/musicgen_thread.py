@@ -126,8 +126,12 @@ def music_thread_v2(command_queue: Queue, return_queue: Queue):
                 # Optional: still send audio to return_queue if needed elsewhere
                 return_queue.put({
                     'audio_chunk': chunk,
-                    'sampling_rate': sampling_rate
+                    'sampling_rate': sampling_rate,
+                    'tempo': command.get('tempo', 1.0),
+                    'progression': command.get('progression', 'major'),
+                    'key': command.get('key', 'C')
                 })
+
         except Exception as e:
             print(f"[MusicGen] Error while streaming: {e}")
             continue

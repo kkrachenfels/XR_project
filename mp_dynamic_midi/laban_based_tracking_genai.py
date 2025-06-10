@@ -41,8 +41,8 @@ else:
     from midi_thread import music_thread_v2 as music_thread_func
     print("Using MIDI thread")
 
-notes = ["A", "B", "C", "D", "E", "F", "G"]
-BASE_KEY = ["C", "major"] # 
+notes = ["A", "A#/Bb", "B", "C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab"]
+BASE_KEY = [3, "major"] # 
 BASE_TIME = 4 # 4 or 3 
 BASE_TEMPO = 60
 
@@ -120,13 +120,12 @@ def calculate_arm_openness(pose_landmarks):
         return None
     
 def calculate_new_key(note, shift):
-    note_int = ord(note.upper())
-    note_int += shift
-    while note_int < 65:
-        note_int += 7
-    while note_int > 71:
-        note_int -= 7
-    return chr(note_int)
+    note += shift
+    while note < 0:
+        note += 12
+    while note > 11:
+        note -= 12
+    return note
 
 # Set up video capture
 cap = cv2.VideoCapture(0)  # or 1 for external cam
@@ -189,17 +188,17 @@ def draw_landmarks(rgb_image, results):
 prev_time = time.time()
 
 # Q for communication to MIDI music thread
-command_queue = queue.Queue()
-return_queue = queue.Queue()
+# command_queue = queue.Queue()
+# return_queue = queue.Queue()
 
-m_thread = threading.Thread(target=music_thread_func, args=(command_queue, return_queue))
-m_thread.start()
-initial_command = {
-    'key': BASE_KEY[0],
-    'progression': BASE_KEY[1], 
-    'tempo': 1.0
-}
-command_queue.put(initial_command)
+# m_thread = threading.Thread(target=music_thread_func, args=(command_queue, return_queue))
+# m_thread.start()
+# initial_command = {
+#     'key': BASE_KEY[0],
+#     'progression': BASE_KEY[1], 
+#     'tempo': 1.0
+# }
+# command_queue.put(initial_command)
 
 frame_count = 0
 last_progression = None
@@ -218,144 +217,124 @@ cur_key = BASE_KEY
 cur_tempo = BASE_TEMPO
 cur_time = BASE_TIME
 
-try: 
+current_music_command = {
+    'key': cur_key[0],
+    'progression': cur_key[1],
+    'tempo': 1.0,
+    'time': cur_time
+}
+
+command_queue = queue.Queue()
+return_queue = queue.Queue()
+m_thread = threading.Thread(target=music_thread_func, args=(command_queue, return_queue))
+m_thread.start()
+command_queue.put(current_music_command.copy())
+
+try:
     while cap.isOpened():
         success, frame = cap.read()
         if not success:
             print("Webcam read failed.")
             break
 
-        # handle feedback from the midi thread
+        # === Feedback handling ===
         try:
-            while feedback := return_queue.get_nowait():
-                print(f"===>Got feedback: {feedback}===")
-
-                # Handle audio playback
+            while True:
+                feedback = return_queue.get_nowait()
+                print(f"===> Got feedback: {feedback}")
                 if 'audio_chunk' in feedback:
-                    audio_chunk = feedback['audio_chunk']
-                    sampling_rate = feedback['sampling_rate']
-                    sd.play(audio_chunk, sampling_rate)
-                    continue
-
-                if 'tempo' in feedback.keys():
+                    sd.play(feedback['audio_chunk'], feedback['sampling_rate'])
+                if 'tempo' in feedback:
                     cur_tempo = feedback['tempo']
-                elif 'progression' in feedback.keys():
+                if 'progression' in feedback:
                     cur_key[1] = feedback['progression']
-                elif 'time' in feedback.keys():
+                    current_music_command['progression'] = feedback['progression']
+                if 'time' in feedback:
                     cur_time = feedback['time']
-                elif 'shift' in feedback.keys():
+                    current_music_command['time'] = feedback['time']
+                if 'shift' in feedback:
                     cur_key[0] = calculate_new_key(cur_key[0], feedback['shift'])
+                    current_music_command['key'] = cur_key[0]
         except queue.Empty:
             pass
-        # end feedback handling
 
+        # === Pose processing ===
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms = int(time.time() * 1000)
         results = landmarker.detect_for_video(mp_image, timestamp_ms)
-        
-        
+
+        # === Time signature detection ===
         if len(results.pose_landmarks) >= 2:
-            person1 = results.pose_landmarks[0]
-            person2 = results.pose_landmarks[1]
-            distance = calculate_pairwise_distance(person1, person2)
+            dist = calculate_pairwise_distance(results.pose_landmarks[0], results.pose_landmarks[1])
+            current_music_command['time'] = 4 if dist < 0.2 else 3
+            command_queue.put(current_music_command.copy())
+            print(f"3D Distance: {dist:.3f} → Time Signature: {current_music_command['time']}/4")
 
-            # Thresholds may need tuning
-            if distance < 0.2:
-                command_queue.put({'time': 4})  # 4/4 time
-                print(f"3D Distance: {distance:.3f} → Time Signature: 4/4")
-            else:
-                command_queue.put({'time': 3})  # 3/4 time
-                print(f"3D Distance: {distance:.3f} → Time Signature: 3/4")
-
-        
+        # === Expression detection ===
         if results.pose_landmarks:
-            openness_scores = []
-            for pose in results.pose_landmarks:
-                openness = calculate_arm_openness(pose)
-                if openness is not None:
-                    openness_scores.append(openness)
-
+            openness_scores = [calculate_arm_openness(p) for p in results.pose_landmarks if calculate_arm_openness(p) is not None]
             if openness_scores:
-                avg_openness = np.mean(openness_scores)
+                avg_open = np.mean(openness_scores)
+                if (last_progression == 'major' and avg_open < MINOR_THRESHOLD) or \
+                   (last_progression == 'minor' and avg_open > MAJOR_THRESHOLD) or last_progression is None:
+                    new_prog = 'minor' if avg_open < 1.0 else 'major'
+                    last_progression = new_prog
+                    current_music_command['progression'] = new_prog
+                    command_queue.put(current_music_command.copy())
+                    print(f"Openness: {avg_open:.2f} → {new_prog}")
 
-                if last_progression == 'major' and avg_openness < MINOR_THRESHOLD:
-                    command_queue.put({'progression': 'minor'})
-                    print(f"Openness: {avg_openness:.2f} → minor")
-                    last_progression = 'minor'
-                elif last_progression == 'minor' and avg_openness > MAJOR_THRESHOLD:
-                    command_queue.put({'progression': 'major'})
-                    print(f"Openness: {avg_openness:.2f} → major")
-                    last_progression = 'major'
-                elif last_progression is None:
-                    progression = 'minor' if avg_openness < 1.0 else 'major'
-                    command_queue.put({'progression': progression})
-                    print(f"Openness: {avg_openness:.2f} → {progression}")
-                    last_progression = progression
-
-            
-            shifts = []
-            for pose in results.pose_landmarks:
-                shift = calculate_arm_lift_shift(pose)
-                shifts.append(shift)
-
-            if shifts:
-                avg_shift = int(np.round(np.mean(shifts)))
-                now = time.time()
-
-                # Only send if shift changed AND cooldown has passed
-                if avg_shift != last_sent_shift and (now - last_shift_time) > SHIFT_COOLDOWN:
-                    command_queue.put({'shift': avg_shift - last_sent_shift})
-                    print(f"Vertical arm delta → Shift: {avg_shift:+}")
-                    last_sent_shift = avg_shift
-                    last_shift_time = now
-            
+            # === Arm lift → Key shift ===
+            avg_shift = int(np.round(np.mean([calculate_arm_lift_shift(p) for p in results.pose_landmarks])))
             now = time.time()
-            avg_velocities = []
+            if avg_shift != last_sent_shift and now - last_shift_time > SHIFT_COOLDOWN:
+                delta = avg_shift - last_sent_shift
+                last_sent_shift = avg_shift
+                last_shift_time = now
+                cur_key[0] = calculate_new_key(cur_key[0], delta)
+                current_music_command['key'] = cur_key[0]
+                command_queue.put(current_music_command.copy())
+                print(f"Vertical arm delta → Shift: {delta:+}")
 
+            # === Velocity → Tempo ===
+            avg_velocities = []
             for i, pose_landmarks in enumerate(results.pose_landmarks):
                 prev = landmark_history.get(i)
                 velocity = calculate_average_velocity(pose_landmarks, prev)
                 avg_velocities.append(velocity)
-                landmark_history[i] = pose_landmarks  # update history
+                landmark_history[i] = pose_landmarks
 
             if avg_velocities:
                 avg_velocity = np.mean(avg_velocities)
-                
-                # play with values
-                min_vel = 0.003
-                max_vel = 0.05
-                min_factor = 1.5
-                max_factor = 0.5
+                clamped = np.clip(avg_velocity, 0.003, 0.5)
+                norm = (clamped - 0.003) / (0.5 - 0.003)
+                tempo_factor = 1.5 + (1 - norm) * (0.5 - 1.5)
+                #print(f"[DEBUG] avg_velocity={avg_velocity}, clamped={clamped}, tempo_factor={tempo_factor}")
 
-                clamped_velocity = np.clip(avg_velocity, min_vel, max_vel)
-                velocity_norm = (clamped_velocity - min_vel) / (max_vel - min_vel)
-                tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
-
-                if abs(tempo_factor - last_tempo_factor) > 0.001 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
-                    command_queue.put({'tempo': tempo_factor})
-                    print(f"Avg velocity: {avg_velocity:.4f} → Tempo factor: {tempo_factor:.2f}")
+                if abs(tempo_factor - last_tempo_factor) > 0.001 and now - last_tempo_sent_time > TEMPO_COOLDOWN:
+                    current_music_command['tempo'] = tempo_factor
                     last_tempo_factor = tempo_factor
                     last_tempo_sent_time = now
+                    command_queue.put(current_music_command.copy())
+                    cur_tempo = int(60 * tempo_factor)  # ← this line ensures display is updated
 
-        if results.pose_landmarks:
-            annotated = draw_landmarks(rgb, results)
-        else:
-            annotated = rgb.copy()
+                    print(f"Avg velocity: {avg_velocity:.4f} → Tempo factor: {tempo_factor:.2f}")
 
+        # === Display ===
+        annotated = draw_landmarks(rgb, results) if results.pose_landmarks else rgb.copy()
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
-
-        cv2.rectangle(bgr,(0, 0),(450, 200) ,(0, 0, 0), -1)
-        info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
-        cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
-        cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
-        cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
+        cv2.rectangle(bgr, (0, 0), (650, 200), (0, 0, 0), -1)
+        info_strings = [
+            f"Tempo: {cur_tempo:.0f}",
+            f"Time: {cur_time}/4",
+            f"Key: {notes[cur_key[0]]} {cur_key[1]}"
+        ]
+        for i, text in enumerate(info_strings):
+            cv2.putText(bgr, text, (10, 60 + 60 * i), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
 
         cv2.imshow("PoseLandmarker - Multi Person", bgr)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
-        frame_count += 1
 
     cap.release()
     cv2.destroyAllWindows()

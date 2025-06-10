@@ -12,8 +12,8 @@ from mediapipe.framework.formats import landmark_pb2
 
 from midi_thread import *
 
-notes = ["A", "B", "C", "D", "E", "F", "G"]
-BASE_KEY = ["C", "major"] # 
+notes = ["A", "A#/Bb", "B", "C", "C#/Db", "D", "D#/Eb", "E", "F", "F#/Gb", "G", "G#/Ab"]
+BASE_KEY = [3, "major"] # 
 BASE_TIME = 4 # 4 or 3 
 BASE_TEMPO = 60
 
@@ -102,13 +102,12 @@ def calculate_arm_openness(pose_landmarks):
         return None
     
 def calculate_new_key(note, shift):
-    note_int = ord(note.upper())
-    note_int += shift
-    while note_int < 65:
-        note_int += 7
-    while note_int > 71:
-        note_int -= 7
-    return chr(note_int)
+    note += shift
+    while note < 0:
+        note += 12
+    while note > 11:
+        note -= 12
+    return note
 
 # Set up video capture
 cap = cv2.VideoCapture(0)  # or 1 for external cam
@@ -316,8 +315,8 @@ try:
 
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
 
-        cv2.rectangle(bgr,(0, 0),(450, 200) ,(0, 0, 0), -1)
-        info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {cur_key[0]} {cur_key[1]}"]
+        cv2.rectangle(bgr,(0, 0),(650, 200) ,(0, 0, 0), -1)
+        info_strings = [f"Tempo: {cur_tempo:.0f}", f"Time: {cur_time}/4", f"Key: {notes[cur_key[0]]} {cur_key[1]}"]
         cv2.putText(bgr, info_strings[0], (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         cv2.putText(bgr, info_strings[1], (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)
         cv2.putText(bgr, info_strings[2], (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 255), 6)

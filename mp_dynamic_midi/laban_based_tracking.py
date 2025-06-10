@@ -292,15 +292,15 @@ try:
                 
                 # play with values
                 
-                min_vel = 0.01   
-                max_vel = 0.15   
-                min_factor = 0.7  
-                max_factor = 1.4  
+                min_vel = 0.003
+                max_vel = 0.05
+                min_factor = 1.5
+                max_factor = 0.5  
 
                 clamped_velocity = np.clip(avg_velocity, min_vel, max_vel)
                 velocity_norm = (clamped_velocity - min_vel) / (max_vel - min_vel)
-                #tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
-                tempo_factor = min_factor + velocity_norm * (max_factor - min_factor)
+                tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
+                #tempo_factor = min_factor + velocity_norm * (max_factor - min_factor)
 
                 if abs(tempo_factor - last_tempo_factor) > 0.001 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
                     command_queue.put({'tempo': tempo_factor})

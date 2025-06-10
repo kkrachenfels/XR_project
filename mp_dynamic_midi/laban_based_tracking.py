@@ -62,7 +62,7 @@ def calculate_pairwise_distance(p1_landmarks, p2_landmarks):
 
     return np.mean(distances)  # average torso distance in 3D
 
-def calculate_arm_lift_shift(pose_landmarks, max_shift=4):
+def calculate_arm_lift_shift(pose_landmarks, max_shift=10):
     try:
         # Use average height of wrists compared to shoulders
         left_shoulder_y = pose_landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER].y
@@ -292,14 +292,16 @@ try:
                 avg_velocity = np.mean(avg_velocities)
                 
                 # play with values
-                min_vel = 0.003
-                max_vel = 0.05
-                min_factor = 1.5
-                max_factor = 0.5
+                
+                min_vel = 0.01   
+                max_vel = 0.15   
+                min_factor = 0.7  
+                max_factor = 1.4  
 
                 clamped_velocity = np.clip(avg_velocity, min_vel, max_vel)
                 velocity_norm = (clamped_velocity - min_vel) / (max_vel - min_vel)
-                tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
+                #tempo_factor = min_factor + (1 - velocity_norm) * (max_factor - min_factor)
+                tempo_factor = min_factor + velocity_norm * (max_factor - min_factor)
 
                 if abs(tempo_factor - last_tempo_factor) > 0.001 and (now - last_tempo_sent_time > TEMPO_COOLDOWN):
                     command_queue.put({'tempo': tempo_factor})

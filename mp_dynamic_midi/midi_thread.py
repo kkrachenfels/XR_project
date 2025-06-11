@@ -402,41 +402,25 @@ if __name__ == "__main__":
 
 
     try:
-        #time.sleep(1)
+        '''
         print("Upping tempo")
         for i in range(8):
             command_queue.put({'tempo': 0.8})
             time.sleep(1)
-
-        #command_queue.put({'type': 'new_melody'})
-
-        #command_queue.put({'invert': 1})
-        #command_queue.put({'invert': -1})
-
         
-        '''
         print("Randomly shifting the semitones of the chord up/down within -12 to 12")
         for i in range(1):
             random_semitones = random.randint(-12, 12)
             command_queue.put({'shift': random_semitones})
-            #command_queue.put({'type': 'new_melody'}) 
+        
         command_queue.put({'progression': 'minor'})
-        for i in range(1):
-            random_semitones = random.randint(-12, 12)
-            command_queue.put({'shift': random_semitones})
-
         command_queue.put({'progression': 'major'})
 
-        print("changing time????")
         command_queue.put({'time': 3})
-        time.sleep(3)
         #command_queue.put({'time': 2})
 
-
-        #time.sleep(10)
         #print("Stopping MIDI threads")
         #command_queue.put({'type': 'stop'})
-        #chord_queue.put({'type': 'stop'})
         '''
 
         m_thread.join()

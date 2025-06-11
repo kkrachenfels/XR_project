@@ -43,7 +43,6 @@ def convert_time_to_sec(time):
     # in ticks to relative time in seconds.
     if time > 0:
         delta = tick2second(time, DEFAULT_TICKS_PER_BEAT, tempo)
-        #print(delta)
     else:
         delta = 0
     return delta
@@ -134,7 +133,6 @@ def end_current_chord(chord):
 
 
 def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes=False):
-    print("In time_4_4")
     if not melody:
         melody = []
         scale = create_scale(chord[0], minor=minor)
@@ -178,7 +176,6 @@ def time_4_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
 
 
 def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes=False):
-    print("In time_4_4")
     if not melody:
         melody = []
         scale = create_scale(chord[0], minor=minor)
@@ -222,7 +219,6 @@ def time_3_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes
 
 
 def time_2_4(chord, melody=None, shift=0, inversion=0, minor=False, replay_notes=False):
-    print("In time_4_4")
     if not melody:
         melody = []
         scale = create_scale(chord[0], minor=minor)

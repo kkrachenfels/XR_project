@@ -17,7 +17,6 @@ class MusicgenStreamer(BaseStreamer):
         self.audio_encoder = model.audio_encoder
         self.generation_config = model.generation_config
         self.device = device if device is not None else model.device
-
         self.play_steps = play_steps
         if stride is not None:
             self.stride = stride
@@ -46,21 +45,16 @@ class MusicgenStreamer(BaseStreamer):
         output_values = self.audio_encoder.decode(input_ids, audio_scales=[None])
         audio_values = output_values.audio_values[0, 0]
         
-        # Robust conversion to numpy array
         try:
             if hasattr(audio_values, 'cpu'):
-                # It's a PyTorch tensor
                 return audio_values.cpu().float().numpy()
             elif isinstance(audio_values, torch.Tensor):
-                # It's a tensor but maybe already on CPU
                 return audio_values.float().numpy()
             else:
-                # It's already a numpy array
                 return np.array(audio_values, dtype=np.float32)
         except Exception as e:
-            print(f"[MusicgenStreamer] Error converting audio_values: {e}")
-            print(f"[MusicgenStreamer] audio_values type: {type(audio_values)}")
-            # Fallback: try direct conversion
+            print(f"MusicgenStreamer Error converting audio_values: {e}")
+            print(f"MusicgenStreamer audio_values type: {type(audio_values)}")
             return np.array(audio_values).astype(np.float32)
 
     def put(self, value):
@@ -78,7 +72,7 @@ class MusicgenStreamer(BaseStreamer):
                 self.on_finalized_audio(audio_values[self.to_yield : -self.stride])
                 self.to_yield += len(audio_values) - self.to_yield - self.stride
             except Exception as e:
-                print(f"[MusicgenStreamer] Error in put(): {e}")
+                print(f"MusicgenStreamer Error in put(): {e}")
                 raise
 
     def end(self):
@@ -89,8 +83,7 @@ class MusicgenStreamer(BaseStreamer):
                 audio_values = np.zeros(self.to_yield)
             self.on_finalized_audio(audio_values[self.to_yield :], stream_end=True)
         except Exception as e:
-            print(f"[MusicgenStreamer] Error in end(): {e}")
-            # Send empty audio to end the stream
+            print(f"MusicgenStreamer Error in end(): {e}")
             self.on_finalized_audio(np.zeros(1024), stream_end=True)
 
     def on_finalized_audio(self, audio: np.ndarray, stream_end: bool = False):

@@ -47,7 +47,7 @@ def calculate_average_velocity(curr_landmarks, prev_landmarks):
     return total_dist / count if count > 0 else 0
 
 def calculate_pairwise_distance(p1_landmarks, p2_landmarks):
-    # Use midpoint of the torso for better spatial estimate
+    # Use midpoint of torso for estimate
     keypoints = [mp.solutions.pose.PoseLandmark.LEFT_SHOULDER,
                  mp.solutions.pose.PoseLandmark.RIGHT_SHOULDER,
                  mp.solutions.pose.PoseLandmark.LEFT_HIP,
@@ -76,8 +76,8 @@ def calculate_arm_lift_shift(pose_landmarks, max_shift=10):
         # Negative if arms are raised
         delta = shoulder_y - wrist_y
 
-        # Map range: roughly [-0.5, +0.5] → [-max_shift, +max_shift]
-        shift = int(np.clip(delta * 20, -max_shift, max_shift)) # max so far is +/- 6
+        # Map range: roughly [-0.5, +0.5] -> [-max_shift, +max_shift]
+        shift = int(np.clip(delta * 20, -max_shift, max_shift)) # max so far is +/- 10
         return shift
     except:
         return 0
@@ -95,7 +95,7 @@ def calculate_arm_openness(pose_landmarks):
         wrist_span = abs(left_wrist.x - right_wrist.x)
         shoulder_span = abs(left_shoulder.x - right_shoulder.x)
 
-        # Normalize by shoulder span (to account for body size)
+        # Normalize by shoulder span
         openness = wrist_span / shoulder_span
         return min(max(openness, 0.0), 2.0)  # clamp to [0, 2] just in case
     except:
@@ -109,12 +109,12 @@ def calculate_new_key(note, shift):
         note -= 12
     return note
 
-# Set up video capture
-cap = cv2.VideoCapture(0)  # or 1 for external cam
+# set up video capture
+cap = cv2.VideoCapture(0) #change for iphone cam
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1024)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
-# Set up the pose landmarker
+# set up the pose landmarker
 base_options = python.BaseOptions(model_asset_path=model_path)
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
@@ -271,7 +271,7 @@ try:
                 avg_shift = int(np.round(np.mean(shifts)))
                 now = time.time()
 
-                # Only send if shift changed AND cooldown has passed
+                # Only send if shift changed and cooldown done
                 if avg_shift != last_sent_shift and (now - last_shift_time) > SHIFT_COOLDOWN:
                     command_queue.put({'shift': avg_shift - last_sent_shift})
                     print(f"Vertical arm delta → Shift: {avg_shift:+}")
@@ -285,7 +285,7 @@ try:
                 prev = landmark_history.get(i)
                 velocity = calculate_average_velocity(pose_landmarks, prev)
                 avg_velocities.append(velocity)
-                landmark_history[i] = pose_landmarks  # update history
+                landmark_history[i] = pose_landmarks  # update hist
 
             if avg_velocities:
                 avg_velocity = np.mean(avg_velocities)

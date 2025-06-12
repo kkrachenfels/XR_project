@@ -11,7 +11,7 @@ def parse_arguments():
                         help="Enable MusicGen output instead of MIDI")
     return parser.parse_args()
 
-# Parse arguments FIRST, before other imports
+# issues wirth args
 args = vars(parse_arguments())
 USE_MUSICGEN = args['use_musicgen']
 
@@ -80,7 +80,7 @@ def calculate_pairwise_distance(p1_landmarks, p2_landmarks):
 
     return np.mean(distances)  # average torso distance in 3D
 
-def calculate_arm_lift_shift(pose_landmarks, max_shift=4):
+ddef calculate_arm_lift_shift(pose_landmarks, max_shift=10):
     try:
         # Use average height of wrists compared to shoulders
         left_shoulder_y = pose_landmarks[mp.solutions.pose.PoseLandmark.LEFT_SHOULDER].y
@@ -94,11 +94,12 @@ def calculate_arm_lift_shift(pose_landmarks, max_shift=4):
         # Negative if arms are raised
         delta = shoulder_y - wrist_y
 
-        # Map range: roughly [-0.5, +0.5] → [-max_shift, +max_shift]
-        shift = int(np.clip(delta * 20, -max_shift, max_shift)) # max so far is +/- 6
+        # Map range: roughly [-0.5, +0.5] -> [-max_shift, +max_shift]
+        shift = int(np.clip(delta * 20, -max_shift, max_shift)) # max so far is +/- 10
         return shift
     except:
         return 0
+
 
 
 def calculate_arm_openness(pose_landmarks):
@@ -113,7 +114,7 @@ def calculate_arm_openness(pose_landmarks):
         wrist_span = abs(left_wrist.x - right_wrist.x)
         shoulder_span = abs(left_shoulder.x - right_shoulder.x)
 
-        # Normalize by shoulder span (to account for body size)
+        # Normalize by shoulder span
         openness = wrist_span / shoulder_span
         return min(max(openness, 0.0), 2.0)  # clamp to [0, 2] just in case
     except:
@@ -127,12 +128,12 @@ def calculate_new_key(note, shift):
         note -= 12
     return note
 
-# Set up video capture
-cap = cv2.VideoCapture(0)  # or 1 for external cam
+# set up video capture
+cap = cv2.VideoCapture(0)  #change for iphone cam
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1024)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
 
-# Set up the pose landmarker
+# set up the pose landmarker
 base_options = python.BaseOptions(model_asset_path=model_path)
 options = vision.PoseLandmarkerOptions(
     base_options=base_options,
@@ -187,7 +188,6 @@ def draw_landmarks(rgb_image, results):
 # Main loop
 prev_time = time.time()
 
-# Q for communication to MIDI music thread
 # command_queue = queue.Queue()
 # return_queue = queue.Queue()
 
@@ -237,7 +237,7 @@ try:
             print("Webcam read failed.")
             break
 
-        # === Feedback handling ===
+        # feedback
         try:
             while True:
                 feedback = return_queue.get_nowait()
@@ -258,20 +258,20 @@ try:
         except queue.Empty:
             pass
 
-        # === Pose processing ===
+        #Process pose
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         timestamp_ms = int(time.time() * 1000)
         results = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-        # === Time signature detection ===
+        # time sig ->slight issues
         if len(results.pose_landmarks) >= 2:
             dist = calculate_pairwise_distance(results.pose_landmarks[0], results.pose_landmarks[1])
             current_music_command['time'] = 4 if dist < 0.2 else 3
             command_queue.put(current_music_command.copy())
-            print(f"3D Distance: {dist:.3f} → Time Signature: {current_music_command['time']}/4")
+            print(f"3D Distance: {dist:.3f} -> Time Signature: {current_music_command['time']}/4")
 
-        # === Expression detection ===
+        #open close
         if results.pose_landmarks:
             openness_scores = [calculate_arm_openness(p) for p in results.pose_landmarks if calculate_arm_openness(p) is not None]
             if openness_scores:
@@ -282,9 +282,9 @@ try:
                     last_progression = new_prog
                     current_music_command['progression'] = new_prog
                     command_queue.put(current_music_command.copy())
-                    print(f"Openness: {avg_open:.2f} → {new_prog}")
+                    print(f"Openness: {avg_open:.2f} -> {new_prog}")
 
-            # === Arm lift → Key shift ===
+            # arm height
             avg_shift = int(np.round(np.mean([calculate_arm_lift_shift(p) for p in results.pose_landmarks])))
             now = time.time()
             if avg_shift != last_sent_shift and now - last_shift_time > SHIFT_COOLDOWN:
@@ -294,9 +294,9 @@ try:
                 cur_key[0] = calculate_new_key(cur_key[0], delta)
                 current_music_command['key'] = cur_key[0]
                 command_queue.put(current_music_command.copy())
-                print(f"Vertical arm delta → Shift: {delta:+}")
+                print(f"Vertical arm delta -> Shift: {delta:+}")
 
-            # === Velocity → Tempo ===
+            # tempo
             avg_velocities = []
             for i, pose_landmarks in enumerate(results.pose_landmarks):
                 prev = landmark_history.get(i)
@@ -318,9 +318,9 @@ try:
                     command_queue.put(current_music_command.copy())
                     cur_tempo = int(60 * tempo_factor)  # ← this line ensures display is updated
 
-                    print(f"Avg velocity: {avg_velocity:.4f} → Tempo factor: {tempo_factor:.2f}")
+                    print(f"Avg velocity: {avg_velocity:.4f} -> Tempo factor: {tempo_factor:.2f}")
 
-        # === Display ===
+        # display
         annotated = draw_landmarks(rgb, results) if results.pose_landmarks else rgb.copy()
         bgr = cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR)
         cv2.rectangle(bgr, (0, 0), (650, 200), (0, 0, 0), -1)

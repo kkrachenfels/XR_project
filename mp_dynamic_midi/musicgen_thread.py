@@ -7,19 +7,6 @@ import numpy as np
 import sounddevice as sd
 
 
-# def build_prompt_from_command(command):
-#     """
-#     Constructs a basic prompt string for MusicGen based on gesture-based command parameters.
-#     """
-#     key = command.get('key', 'C')
-#     progression = command.get('progression', 'major')
-#     tempo_factor = command.get('tempo', 1.0)
-
-#     # Convert factor into approximate BPM
-#     base_bpm = 60
-#     bpm = int(base_bpm / tempo_factor) if tempo_factor else base_bpm
-
-#     return f"A {progression} piece in {key} major, approximately {bpm} BPM with expressive instrumentals."
 def build_prompt_from_command(command):
     """
     Builds an LMA-aligned MusicGen prompt using:
@@ -32,7 +19,7 @@ def build_prompt_from_command(command):
     progression = command.get('progression', 'major').lower()
     tempo = command.get('tempo', 1.0)
 
-    # === Effort/Dynamics via Tempo ===
+    #Tempo
     if tempo < 0.5:
         effort_time = "very quick and intense"
         weight = "strong and urgent"
@@ -54,7 +41,7 @@ def build_prompt_from_command(command):
         weight = "weightless and airy"
         energy = "floating, meditative quality"
 
-    # === Shape/Emotion via Progression ===
+    #Open/closed
     if progression == "major":
         mood = "bright, open, and uplifting"
         shape_qual = "expanding and confident"
@@ -65,7 +52,7 @@ def build_prompt_from_command(command):
         mood = "ambiguous, atmospheric, and evolving"
         shape_qual = "shifting or fluid"
 
-    # === Final Prompt ===
+    #Fin prompt
     return (
         f"A {mood} composition in {key} {progression}. "
         f"The tempo evokes {effort_time} movement, with {weight} phrasing and a sense of {energy}. "
@@ -76,7 +63,7 @@ def build_prompt_from_command(command):
 
 
 def music_thread_v2(command_queue: Queue, return_queue: Queue):
-    print("[MusicGen] Loading model...")
+    print("MusicGen Loading model...")
     model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
     processor = MusicgenProcessor.from_pretrained("facebook/musicgen-small")
 
@@ -88,16 +75,16 @@ def music_thread_v2(command_queue: Queue, return_queue: Queue):
     sampling_rate = model.audio_encoder.config.sampling_rate
     frame_rate = model.audio_encoder.config.frame_rate
 
-    print("[MusicGen] Model initialized and waiting for prompts...")
+    print("MusicGen Model initialized and waiting for prompts...")
 
     while True:
         command = command_queue.get()
         if command.get('type') == 'stop':
-            print("[MusicGen] Received stop command. Shutting down...")
+            print("MusicGen Received stop command. Shutting down...")
             break
 
         prompt = build_prompt_from_command(command)
-        print(f"[MusicGen] Prompt: {prompt}")
+        print(f"MusicGen Prompt: {prompt}")
 
         inputs = processor(text=prompt, return_tensors="pt").to(device)
 
@@ -115,15 +102,15 @@ def music_thread_v2(command_queue: Queue, return_queue: Queue):
 
         try:
             for chunk in streamer:
-                #chunk = chunk.cpu().numpy()  # Convert tensor to numpy array for playback
+                #chunk = chunk.cpu().numpy()
                 chunk = chunk.astype(np.float32)
                 duration = round(chunk.shape[0] / sampling_rate, 2)
-                print(f"[MusicGen] → Streaming chunk ({duration} sec)")
+                print(f"MusicGen → Streaming chunk ({duration} sec)")
 
                 sd.play(chunk, samplerate=sampling_rate)
-                sd.wait()  # Wait for chunk to finish before playing next
+                sd.wait()
 
-                # Optional: still send audio to return_queue if needed elsewhere
+                # send back
                 return_queue.put({
                     'audio_chunk': chunk,
                     'sampling_rate': sampling_rate,
@@ -133,9 +120,9 @@ def music_thread_v2(command_queue: Queue, return_queue: Queue):
                 })
 
         except Exception as e:
-            print(f"[MusicGen] Error while streaming: {e}")
+            print(f"MusicGen Error while streaming: {e}")
             continue
 
         thread.join()
 
-    print("[MusicGen] Music thread closed.")
+    print("MusicGen Music thread closed.")

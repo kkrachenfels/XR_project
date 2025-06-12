@@ -1,3 +1,4 @@
+#MusicGen is by Meta AI via Hugging Face
 from queue import Queue
 from transformers import MusicgenForConditionalGeneration
 from transformers.generation.streamers import BaseStreamer
